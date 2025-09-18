@@ -31,13 +31,15 @@ export default function ChoreCard({
       return response.json();
     },
     onSuccess: async () => {
-      // Refetch user data to get new points balance
+      // Invalidate and refetch user data to update balance throughout the app
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chores"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      
+      // Get the updated user balance for the celebration callback
       const userResponse = await queryClient.fetchQuery({
         queryKey: ["/api/user"]
       });
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/chores"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       
       onComplete?.(chore.points, (userResponse as any).points);
       

@@ -31,6 +31,7 @@ export default function RewardCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rewards"] });
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       
       toast({

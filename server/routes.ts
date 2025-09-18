@@ -177,6 +177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newPoints = user.points - reward.cost;
       await storage.updateUserPoints(USER_ID, newPoints);
 
+      // Mark reward as unavailable (one-time use)
+      await storage.updateReward(id, { isAvailable: false });
+
       // Create transaction record
       await storage.createTransaction({
         type: "spend",
