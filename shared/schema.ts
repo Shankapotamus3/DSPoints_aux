@@ -8,6 +8,9 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   points: integer("points").notNull().default(0),
+  displayName: text("display_name"),
+  avatar: text("avatar").default("👤"),
+  isAdmin: boolean("is_admin").notNull().default(false),
 });
 
 export const chores = pgTable("chores", {
@@ -19,6 +22,12 @@ export const chores = pgTable("chores", {
   isCompleted: boolean("is_completed").notNull().default(false),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  // Recurring chore fields
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringType: text("recurring_type"), // 'daily', 'weekly', 'monthly'
+  nextDueDate: timestamp("next_due_date"),
+  // Family member assignment
+  assignedToId: varchar("assigned_to_id").references(() => users.id),
 });
 
 export const rewards = pgTable("rewards", {
@@ -27,6 +36,7 @@ export const rewards = pgTable("rewards", {
   description: text("description"),
   cost: integer("cost").notNull(),
   icon: text("icon").default("gift"),
+  category: text("category").default("other"), // 'entertainment', 'treats', 'activities', 'shopping', 'other'
   isAvailable: boolean("is_available").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
@@ -51,6 +61,9 @@ export const insertChoreSchema = createInsertSchema(chores).omit({
   isCompleted: true,
   completedAt: true,
   createdAt: true,
+  nextDueDate: true,
+}).extend({
+  recurringType: z.enum(['daily', 'weekly', 'monthly']).optional(),
 });
 
 export const insertRewardSchema = createInsertSchema(rewards).omit({

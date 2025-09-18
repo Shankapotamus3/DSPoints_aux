@@ -1,11 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Chore } from "@shared/schema";
+import type { Chore, User } from "@shared/schema";
 
 interface ChoreCardProps {
   chore: Chore;
@@ -24,6 +24,12 @@ export default function ChoreCard({
 }: ChoreCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+  
+  const assignedUser = chore.assignedToId ? users.find(u => u.id === chore.assignedToId) : null;
 
   const completeMutation = useMutation({
     mutationFn: async () => {
@@ -116,12 +122,29 @@ export default function ChoreCard({
         </div>
         
         <div className="flex items-center justify-between">
-          {chore.estimatedTime && (
-            <div className="flex items-center text-muted-foreground text-sm">
-              <Clock className="mr-2" size={14} />
-              <span>{chore.estimatedTime}</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-4">
+            {chore.estimatedTime && (
+              <div className="flex items-center text-muted-foreground text-sm">
+                <Clock className="mr-2" size={14} />
+                <span>{chore.estimatedTime}</span>
+              </div>
+            )}
+            {chore.isRecurring && (
+              <div className="flex items-center text-muted-foreground text-sm">
+                <span className="mr-1">🔄</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  {chore.recurringType}
+                </span>
+              </div>
+            )}
+            {assignedUser && (
+              <div className="flex items-center text-muted-foreground text-sm">
+                <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded-full">
+                  {assignedUser.avatar} {assignedUser.displayName || assignedUser.username}
+                </span>
+              </div>
+            )}
+          </div>
           
           {showActions && !chore.isCompleted && (
             <div className="flex items-center space-x-2">

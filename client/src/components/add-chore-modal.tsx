@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertChore, Chore } from "@shared/schema";
+import type { InsertChore, Chore, User } from "@shared/schema";
 
 interface AddChoreModalProps {
   open: boolean;
@@ -24,6 +26,13 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
     description: editChore?.description || "",
     points: editChore?.points || 50,
     estimatedTime: editChore?.estimatedTime || "",
+    isRecurring: editChore?.isRecurring || false,
+    recurringType: (editChore?.recurringType as 'daily' | 'weekly' | 'monthly') || undefined,
+    assignedToId: editChore?.assignedToId || undefined,
+  });
+  
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
 
   const createMutation = useMutation({
@@ -85,6 +94,9 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
       description: "",
       points: 50,
       estimatedTime: "",
+      isRecurring: false,
+      recurringType: undefined,
+      assignedToId: undefined,
     });
     onClose();
   };
@@ -149,6 +161,72 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
                 data-testid="input-chore-time"
               />
             </div>
+          </div>
+          
+          {/* Family Member Assignment */}
+          <div>
+            <Label htmlFor="assignedTo">Assign To</Label>
+            <Select
+              value={formData.assignedToId || ""}
+              onValueChange={(value) => 
+                setFormData({ ...formData, assignedToId: value || undefined })
+              }
+            >
+              <SelectTrigger data-testid="select-assigned-to">
+                <SelectValue placeholder="Choose family member (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Anyone</SelectItem>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.avatar} {user.displayName || user.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Recurring Chore Options */}
+          <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="isRecurring" className="text-base font-medium">Recurring Chore</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Automatically resets when completed
+                </p>
+              </div>
+              <Switch
+                id="isRecurring"
+                checked={formData.isRecurring}
+                onCheckedChange={(checked) => setFormData({ 
+                  ...formData, 
+                  isRecurring: checked,
+                  recurringType: checked ? 'daily' : undefined
+                })}
+                data-testid="switch-recurring"
+              />
+            </div>
+            
+            {formData.isRecurring && (
+              <div>
+                <Label htmlFor="recurringType">Repeat Schedule</Label>
+                <Select
+                  value={formData.recurringType}
+                  onValueChange={(value) => 
+                    setFormData({ ...formData, recurringType: value as 'daily' | 'weekly' | 'monthly' })
+                  }
+                >
+                  <SelectTrigger data-testid="select-recurring-type">
+                    <SelectValue placeholder="Select schedule" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           
           <div className="flex space-x-3 pt-4">

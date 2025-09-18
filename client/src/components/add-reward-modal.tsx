@@ -5,9 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { InsertReward, Reward } from "@shared/schema";
+
+const REWARD_CATEGORIES = {
+  entertainment: { label: 'Entertainment', icon: '🎬' },
+  treats: { label: 'Food & Treats', icon: '🍰' },
+  activities: { label: 'Activities', icon: '🎯' },
+  shopping: { label: 'Shopping', icon: '🛍️' },
+  other: { label: 'Other', icon: '✨' }
+};
 
 interface AddRewardModalProps {
   open: boolean;
@@ -24,6 +33,7 @@ export default function AddRewardModal({ open, onClose, editReward }: AddRewardM
     description: editReward?.description || "",
     cost: editReward?.cost || 100,
     icon: editReward?.icon || "🎁",
+    category: editReward?.category ?? "other",
     isAvailable: editReward?.isAvailable ?? true,
   });
 
@@ -86,6 +96,7 @@ export default function AddRewardModal({ open, onClose, editReward }: AddRewardM
       description: "",
       cost: 100,
       icon: "🎁",
+      category: "other",
       isAvailable: true,
     });
     onClose();
@@ -151,6 +162,26 @@ export default function AddRewardModal({ open, onClose, editReward }: AddRewardM
                 data-testid="input-reward-icon"
               />
             </div>
+          </div>
+          
+          {/* Category Selection */}
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger data-testid="select-reward-category">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(REWARD_CATEGORIES).map(([key, category]) => (
+                  <SelectItem key={key} value={key}>
+                    {category.icon} {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex space-x-3 pt-4">

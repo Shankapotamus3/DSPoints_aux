@@ -1,16 +1,27 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Gift, Coins } from "lucide-react";
+import { Plus, Gift, Coins, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RewardCard from "@/components/reward-card";
 import AddRewardModal from "@/components/add-reward-modal";
 import type { Reward } from "@shared/schema";
 
+const REWARD_CATEGORIES = {
+  all: { label: 'All Categories', icon: '🎁' },
+  entertainment: { label: 'Entertainment', icon: '🎬' },
+  treats: { label: 'Food & Treats', icon: '🍰' },
+  activities: { label: 'Activities', icon: '🎯' },
+  shopping: { label: 'Shopping', icon: '🛍️' },
+  other: { label: 'Other', icon: '✨' }
+};
+
 export default function Rewards() {
   const [showAddReward, setShowAddReward] = useState(false);
   const [editReward, setEditReward] = useState<Reward | undefined>();
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const { data: rewards = [] } = useQuery<Reward[]>({
     queryKey: ["/api/rewards"],
@@ -21,8 +32,14 @@ export default function Rewards() {
   }) as { data: { points: number } | undefined };
 
   const userPoints = user?.points ?? 0;
-  const availableRewards = rewards.filter(reward => reward.isAvailable && reward.cost <= userPoints);
-  const expensiveRewards = rewards.filter(reward => reward.isAvailable && reward.cost > userPoints);
+  
+  // Filter by category first
+  const filteredRewards = selectedCategory === 'all' 
+    ? rewards 
+    : rewards.filter(reward => reward.category === selectedCategory);
+  
+  const availableRewards = filteredRewards.filter(reward => reward.isAvailable && reward.cost <= userPoints);
+  const expensiveRewards = filteredRewards.filter(reward => reward.isAvailable && reward.cost > userPoints);
 
   const handleEditReward = (reward: Reward) => {
     setEditReward(reward);
@@ -52,6 +69,25 @@ export default function Rewards() {
               <Plus className="mr-2" size={16} />
               Add Reward
             </Button>
+          </div>
+        </div>
+        
+        {/* Category Filter */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-3">
+            <Filter size={16} className="text-muted-foreground" />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-48" data-testid="select-reward-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(REWARD_CATEGORIES).map(([key, category]) => (
+                  <SelectItem key={key} value={key}>
+                    {category.icon} {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

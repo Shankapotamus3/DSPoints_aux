@@ -1,9 +1,24 @@
-import { type User, type InsertUser, type Chore, type InsertChore, type Reward, type InsertReward, type Transaction, type InsertTransaction } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { 
+  type User, 
+  type InsertUser, 
+  type Chore, 
+  type InsertChore, 
+  type Reward, 
+  type InsertReward, 
+  type Transaction, 
+  type InsertTransaction,
+  users,
+  chores,
+  rewards,
+  transactions
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPoints(id: string, points: number): Promise<User | undefined>;
@@ -15,6 +30,7 @@ export interface IStorage {
   updateChore(id: string, updates: Partial<Chore>): Promise<Chore | undefined>;
   deleteChore(id: string): Promise<boolean>;
   completeChore(id: string): Promise<Chore | undefined>;
+  resetRecurringChores(): Promise<void>;
   
   // Reward methods
   getRewards(): Promise<Reward[]>;
@@ -28,164 +44,188 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private chores: Map<string, Chore>;
-  private rewards: Map<string, Reward>;
-  private transactions: Map<string, Transaction>;
-
-  constructor() {
-    this.users = new Map();
-    this.chores = new Map();
-    this.rewards = new Map();
-    this.transactions = new Map();
-    
-    // Initialize with default user
-    const defaultUser: User = {
-      id: "user-1",
-      username: "default",
-      password: "password",
-      points: 1247
-    };
-    this.users.set(defaultUser.id, defaultUser);
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+  
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id, points: 0 };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async updateUserPoints(id: string, points: number): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, points };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const [user] = await db
+      .update(users)
+      .set({ points })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
   }
 
   // Chore methods
   async getChores(): Promise<Chore[]> {
-    return Array.from(this.chores.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return await db.select().from(chores);
   }
 
   async getChore(id: string): Promise<Chore | undefined> {
-    return this.chores.get(id);
+    const [chore] = await db.select().from(chores).where(eq(chores.id, id));
+    return chore || undefined;
   }
 
   async createChore(insertChore: InsertChore): Promise<Chore> {
-    const id = randomUUID();
-    const chore: Chore = { 
-      ...insertChore, 
-      id, 
-      description: insertChore.description || null,
-      estimatedTime: insertChore.estimatedTime || null,
-      isCompleted: false,
-      completedAt: null,
-      createdAt: new Date()
-    };
-    this.chores.set(id, chore);
+    const choreData: any = { ...insertChore };
+    
+    // Set next due date for recurring chores
+    if (choreData.isRecurring && choreData.recurringType) {
+      choreData.nextDueDate = this.calculateNextDueDate(choreData.recurringType);
+    }
+    
+    const [chore] = await db
+      .insert(chores)
+      .values(choreData)
+      .returning();
     return chore;
   }
 
   async updateChore(id: string, updates: Partial<Chore>): Promise<Chore | undefined> {
-    const chore = this.chores.get(id);
-    if (!chore) return undefined;
-    
-    const updatedChore = { ...chore, ...updates };
-    this.chores.set(id, updatedChore);
-    return updatedChore;
+    const [chore] = await db
+      .update(chores)
+      .set(updates)
+      .where(eq(chores.id, id))
+      .returning();
+    return chore || undefined;
   }
 
   async deleteChore(id: string): Promise<boolean> {
-    return this.chores.delete(id);
+    const result = await db.delete(chores).where(eq(chores.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async completeChore(id: string): Promise<Chore | undefined> {
-    const chore = this.chores.get(id);
-    if (!chore || chore.isCompleted) return undefined;
+    const existingChore = await this.getChore(id);
+    if (!existingChore) return undefined;
     
-    const completedChore = { 
-      ...chore, 
-      isCompleted: true, 
-      completedAt: new Date() 
-    };
-    this.chores.set(id, completedChore);
-    return completedChore;
+    // Note: Point awarding handled in routes layer where USER_ID is available
+    
+    // For recurring chores, reset them instead of marking complete permanently
+    if (existingChore.isRecurring && existingChore.recurringType) {
+      const nextDue = this.calculateNextDueDate(existingChore.recurringType as 'daily' | 'weekly' | 'monthly');
+      const [chore] = await db
+        .update(chores)
+        .set({ 
+          isCompleted: false,  // Reset to incomplete
+          completedAt: new Date(), // Track when it was completed
+          nextDueDate: nextDue
+        })
+        .where(eq(chores.id, id))
+        .returning();
+      return chore || undefined;
+    } else {
+      // For one-time chores, mark as completed
+      const [chore] = await db
+        .update(chores)
+        .set({ 
+          isCompleted: true, 
+          completedAt: new Date() 
+        })
+        .where(eq(chores.id, id))
+        .returning();
+      return chore || undefined;
+    }
   }
 
   // Reward methods
   async getRewards(): Promise<Reward[]> {
-    return Array.from(this.rewards.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return await db.select().from(rewards);
   }
 
   async getReward(id: string): Promise<Reward | undefined> {
-    return this.rewards.get(id);
+    const [reward] = await db.select().from(rewards).where(eq(rewards.id, id));
+    return reward || undefined;
   }
 
   async createReward(insertReward: InsertReward): Promise<Reward> {
-    const id = randomUUID();
-    const reward: Reward = { 
-      ...insertReward, 
-      id, 
-      description: insertReward.description || null,
-      icon: insertReward.icon || null,
-      isAvailable: insertReward.isAvailable ?? true,
-      createdAt: new Date()
-    };
-    this.rewards.set(id, reward);
+    const [reward] = await db
+      .insert(rewards)
+      .values(insertReward)
+      .returning();
     return reward;
   }
 
   async updateReward(id: string, updates: Partial<Reward>): Promise<Reward | undefined> {
-    const reward = this.rewards.get(id);
-    if (!reward) return undefined;
-    
-    const updatedReward = { ...reward, ...updates };
-    this.rewards.set(id, updatedReward);
-    return updatedReward;
+    const [reward] = await db
+      .update(rewards)
+      .set(updates)
+      .where(eq(rewards.id, id))
+      .returning();
+    return reward || undefined;
   }
 
   async deleteReward(id: string): Promise<boolean> {
-    return this.rewards.delete(id);
+    const result = await db.delete(rewards).where(eq(rewards.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Transaction methods
   async getTransactions(): Promise<Transaction[]> {
-    return Array.from(this.transactions.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return await db.select().from(transactions);
   }
 
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const id = randomUUID();
-    const transaction: Transaction = { 
-      ...insertTransaction, 
-      id, 
-      choreId: insertTransaction.choreId || null,
-      rewardId: insertTransaction.rewardId || null,
-      createdAt: new Date()
-    };
-    this.transactions.set(id, transaction);
+    const [transaction] = await db
+      .insert(transactions)
+      .values(insertTransaction)
+      .returning();
     return transaction;
+  }
+  
+  async resetRecurringChores(): Promise<void> {
+    // Reset recurring chores that are past their due date
+    const now = new Date();
+    await db
+      .update(chores)
+      .set({ 
+        isCompleted: false,
+        nextDueDate: sql`CASE 
+          WHEN recurring_type = 'daily' THEN ${now} + interval '1 day'
+          WHEN recurring_type = 'weekly' THEN ${now} + interval '1 week'
+          WHEN recurring_type = 'monthly' THEN ${now} + interval '1 month'
+          ELSE next_due_date
+        END`
+      })
+      .where(sql`is_recurring = true AND next_due_date <= ${now}::timestamp`);
+  }
+  
+  private calculateNextDueDate(type: 'daily' | 'weekly' | 'monthly'): Date {
+    const now = new Date();
+    switch (type) {
+      case 'daily':
+        now.setDate(now.getDate() + 1);
+        break;
+      case 'weekly':
+        now.setDate(now.getDate() + 7);
+        break;
+      case 'monthly':
+        now.setMonth(now.getMonth() + 1);
+        break;
+    }
+    return now;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

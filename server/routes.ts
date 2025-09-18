@@ -5,7 +5,7 @@ import { insertChoreSchema, insertRewardSchema, insertTransactionSchema } from "
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const USER_ID = "user-1"; // Default user for MVP
+  const USER_ID = "23391fd0-66f6-4e7b-bed1-1b71a93a6d9d"; // Default user for MVP
 
   // Get current user with points
   app.get("/api/user", async (req, res) => {
@@ -17,6 +17,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+  
+  // Get all family members
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get users" });
     }
   });
 
@@ -81,11 +91,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Chore not found or already completed" });
       }
 
-      // Award points to user
-      const user = await storage.getUser(USER_ID);
+      // Award points to assigned user (or default user if no assignment)
+      const userId = chore.assignedToId || USER_ID;
+      const user = await storage.getUser(userId);
       if (user) {
         const newPoints = user.points + chore.points;
-        await storage.updateUserPoints(USER_ID, newPoints);
+        await storage.updateUserPoints(userId, newPoints);
         
         // Create transaction record
         await storage.createTransaction({
