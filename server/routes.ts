@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertChoreSchema, insertRewardSchema, insertTransactionSchema } from "@shared/schema";
+import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -27,6 +27,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(users);
     } catch (error) {
       res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // Create new family member
+  app.post("/api/users", async (req, res) => {
+    try {
+      // For family management, set a default password since authentication isn't the focus
+      const userData = {
+        ...insertUserSchema.omit({ password: true }).parse(req.body),
+        password: "family", // Default password for family members
+        isAdmin: false // Family members are not admins by default
+      };
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      const user = await storage.createUser(userData);
+      res.status(201).json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create family member" });
     }
   });
 

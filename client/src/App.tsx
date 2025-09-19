@@ -8,6 +8,7 @@ import NotFound from "./pages/not-found";
 import Dashboard from "./pages/dashboard";
 import Chores from "./pages/chores";
 import Rewards from "./pages/rewards";
+import Family from "./pages/family";
 import History from "./pages/history";
 import Header from "./components/header";
 import Navigation from "./components/navigation";
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/chores" component={Chores} />
       <Route path="/rewards" component={Rewards} />
+      <Route path="/family" component={Family} />
       <Route path="/history" component={History} />
       <Route component={NotFound} />
     </Switch>
