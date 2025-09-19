@@ -46,9 +46,10 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
     mutationFn: async (updates: Partial<User>) => {
       // If uploading a new image, handle avatar URL update
       if (updates.avatarType === "image" && updates.avatarUrl) {
-        await apiRequest("PUT", `/api/users/${user.id}/avatar`, {
+        const response = await apiRequest("PUT", `/api/users/${user.id}/avatar`, {
           avatarUrl: updates.avatarUrl
         });
+        return response.json();
       } else {
         // Just update user fields
         const response = await apiRequest("PUT", `/api/users/${user.id}`, updates);

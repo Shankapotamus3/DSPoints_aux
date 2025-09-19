@@ -200,40 +200,33 @@ export default function AddFamilyMemberModal({ open, onClose }: AddFamilyMemberM
                 
                 <TabsContent value="upload" className="space-y-3">
                   <div className="text-center">
-                    <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={5242880} // 5MB limit for avatars
-                      onGetUploadParameters={async () => {
-                        // For new users, we need to create a temporary user first or use a different approach
-                        // Since we removed the generic endpoint for security, we'll store the image and set it after user creation
-                        throw new Error("Please create the family member first, then edit their profile to add an avatar image.");
-                      }}
-                      onComplete={(result) => {
-                        if (result.successful && result.successful.length > 0) {
-                          const uploadUrl = result.successful[0].uploadURL;
-                          if (uploadUrl) {
-                            setUploadedImageUrl(uploadUrl);
-                            setFormData({
-                              ...formData,
-                              avatarType: "image",
-                              avatarUrl: uploadUrl,
-                            });
-                            toast({
-                              title: "Avatar Uploaded!",
-                              description: "Your avatar image has been uploaded successfully.",
-                            });
-                          }
-                        }
-                      }}
-                      buttonClassName="w-full"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <span>📷</span>
-                        <span>Upload Avatar Image</span>
+                    <div className="p-6 border-2 border-dashed border-border rounded-lg">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                          <span className="text-2xl">📷</span>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium">Image Avatars</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Image avatars can be added after creating the family member.
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            For now, please select an emoji avatar above.
+                          </p>
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setAvatarTab("emoji")}
+                          data-testid="button-switch-to-emoji"
+                        >
+                          Choose Emoji Avatar
+                        </Button>
                       </div>
-                    </ObjectUploader>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      JPG, PNG, or GIF up to 5MB
+                      You can upload an image avatar by editing the profile after creation.
                     </p>
                   </div>
                 </TabsContent>
