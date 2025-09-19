@@ -167,16 +167,16 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
           <div>
             <Label htmlFor="assignedTo">Assign To</Label>
             <Select
-              value={formData.assignedToId || ""}
+              value={formData.assignedToId || "unassigned"}
               onValueChange={(value) => 
-                setFormData({ ...formData, assignedToId: value || undefined })
+                setFormData({ ...formData, assignedToId: value === "unassigned" ? undefined : value })
               }
             >
               <SelectTrigger data-testid="select-assigned-to">
                 <SelectValue placeholder="Choose family member (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Anyone</SelectItem>
+                <SelectItem value="unassigned">Anyone</SelectItem>
                 {users.map(user => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.avatar} {user.displayName || user.username}
