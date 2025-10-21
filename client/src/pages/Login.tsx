@@ -25,6 +25,19 @@ export default function Login() {
   const [pin, setPin] = useState("");
   const [showError, setShowError] = useState(false);
 
+  // Check if user is already authenticated
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/user"],
+    retry: false,
+  });
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (currentUser) {
+      setLocation("/");
+    }
+  }, [currentUser, setLocation]);
+
   // Fetch all users for login selection
   const { data: users, isLoading } = useQuery<LoginUser[]>({
     queryKey: ["/api/auth/users"],
