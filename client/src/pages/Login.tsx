@@ -40,19 +40,18 @@ export default function Login() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      // Invalidate user query to refresh authentication state
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    onSuccess: async () => {
+      // Invalidate and refetch user query to ensure authentication state is updated
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
       
       toast({
         title: "Welcome back! 🎉",
         description: "You've successfully logged in!",
       });
       
-      // Redirect to home after a short delay to ensure query is refetched
-      setTimeout(() => {
-        setLocation("/");
-      }, 100);
+      // Redirect after ensuring authentication state is updated
+      window.location.href = "/";
     },
     onError: (error: any) => {
       setShowError(true);
