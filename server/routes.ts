@@ -50,6 +50,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return crypto.createHash('sha256').update(password).digest('hex');
   }
 
+  // Initialize default admin user if no users exist
+  async function initializeDefaultAdmin() {
+    try {
+      const existingUsers = await storage.getUsers();
+      if (existingUsers.length === 0) {
+        console.log("No users found. Creating default admin user...");
+        await storage.createUser({
+          username: "admin",
+          password: hashPassword("admin"),
+          pin: hashPassword("1234"),
+          displayName: "Admin",
+          avatar: "👑",
+          avatarType: "emoji",
+          isAdmin: true,
+        });
+        console.log("Default admin user created successfully!");
+        console.log("Username: admin | PIN: 1234");
+      }
+    } catch (error) {
+      console.error("Failed to initialize default admin:", error);
+    }
+  }
+
+  // Initialize default admin on startup
+  await initializeDefaultAdmin();
+
   // Helper function to get current user from request
   function getCurrentUserId(req: Request): string | null {
     return req.session.userId || null;
