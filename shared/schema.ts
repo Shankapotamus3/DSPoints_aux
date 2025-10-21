@@ -75,8 +75,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   points: true,
 }).extend({
   avatarType: z.enum(['emoji', 'image']).optional(),
-  avatarUrl: z.string().optional().refine((url) => {
-    if (!url) return true; // Allow empty/undefined
+  avatarUrl: z.string().nullish().refine((url) => {
+    if (!url) return true; // Allow empty/undefined/null
     // Must be a valid URL that starts with /objects/ (internal path) or https://storage.googleapis.com/
     return url.startsWith('/objects/') || url.startsWith('https://storage.googleapis.com/');
   }, {
