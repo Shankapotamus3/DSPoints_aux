@@ -41,11 +41,11 @@ export default function Login() {
       return response.json();
     },
     onSuccess: () => {
-      // Clear all cached queries
+      // Clear all cached queries and force hard reload
       queryClient.clear();
       
-      // Do a full page reload to root - this ensures cookies are properly sent
-      window.location.assign("/");
+      // Force hard reload to ensure fresh state
+      window.location.href = "/";
     },
     onError: (error: any) => {
       setShowError(true);
