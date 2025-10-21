@@ -157,10 +157,13 @@ export default function Login() {
 
             {/* PIN Display with hidden input for keyboard support */}
             <div className="relative">
-              <div className={`h-16 rounded-2xl bg-[hsl(220,15%,97%)] border-2 flex items-center justify-center ${
-                showError ? 'border-[hsl(0,75%,60%)] animate-shake' : 'border-[hsl(220,15%,90%)]'
-              }`}>
-                <div className="flex gap-3 text-3xl tracking-widest" style={{ fontFamily: 'Fredoka, sans-serif' }}>
+              <div 
+                className={`h-16 rounded-2xl bg-[hsl(220,15%,97%)] border-2 flex items-center justify-center ${
+                  showError ? 'border-[hsl(0,75%,60%)] animate-shake' : 'border-[hsl(220,15%,90%)]'
+                }`}
+                onClick={() => document.getElementById('pin-input-field')?.focus()}
+              >
+                <div className="flex gap-3 text-3xl tracking-widest pointer-events-none" style={{ fontFamily: 'Fredoka, sans-serif' }}>
                   {[...Array(6)].map((_, i) => (
                     <span key={i} className="w-3 h-3">
                       {pin[i] ? '●' : '○'}
@@ -170,6 +173,7 @@ export default function Login() {
               </div>
               {/* Hidden input for keyboard/numeric input */}
               <input
+                id="pin-input-field"
                 type="tel"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -179,8 +183,14 @@ export default function Login() {
                   const value = e.target.value.replace(/\D/g, '');
                   setPin(value);
                 }}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                placeholder="Enter PIN"
+                onFocus={(e) => {
+                  // Ensure mobile keyboards show numeric keypad
+                  e.target.setAttribute('type', 'tel');
+                }}
+                className="absolute top-0 left-0 w-full h-full opacity-0 text-transparent bg-transparent border-none outline-none cursor-text"
+                style={{ caretColor: 'transparent' }}
+                placeholder=""
+                autoComplete="off"
                 autoFocus
                 data-testid="input-pin-hidden"
               />
