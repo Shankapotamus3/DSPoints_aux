@@ -41,6 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax", // Explicitly set SameSite for better cookie handling
       },
     })
   );
@@ -192,21 +193,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid PIN" });
       }
 
-      // Set session
+      // Set session and explicitly save it
       req.session.userId = user.id;
       
-      res.json({ 
-        message: "Login successful",
-        user: {
-          id: user.id,
-          username: user.username,
-          displayName: user.displayName,
-          avatar: user.avatar,
-          avatarType: user.avatarType,
-          avatarUrl: user.avatarUrl,
-          points: user.points,
-          isAdmin: user.isAdmin,
+      // Explicitly save session before responding
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Failed to save session" });
         }
+        
+        res.json({ 
+          message: "Login successful",
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            avatar: user.avatar,
+            avatarType: user.avatarType,
+            avatarUrl: user.avatarUrl,
+            points: user.points,
+            isAdmin: user.isAdmin,
+          }
+        });
       });
     } catch (error) {
       console.error("Login error:", error);
