@@ -41,13 +41,8 @@ export default function Login() {
       return response.json();
     },
     onSuccess: () => {
-      // Remove the cached query entirely to ensure fresh fetch
-      queryClient.removeQueries({ queryKey: ["/api/user"] });
-      
-      // Small delay to ensure session is fully established
-      setTimeout(() => {
-        setLocation("/");
-      }, 100);
+      // Do a full page reload to ensure cookies are properly set
+      window.location.replace("/");
     },
     onError: (error: any) => {
       setShowError(true);
