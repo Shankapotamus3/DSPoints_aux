@@ -155,35 +155,17 @@ export default function Login() {
               </Avatar>
             </div>
 
-            {/* PIN Display with hidden input for keyboard support */}
-            <div className="relative">
-              <div className={`h-16 rounded-2xl bg-[hsl(220,15%,97%)] border-2 flex items-center justify-center ${
-                showError ? 'border-[hsl(0,75%,60%)] animate-shake' : 'border-[hsl(220,15%,90%)]'
-              }`}>
-                <div className="flex gap-3 text-3xl tracking-widest" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-                  {[...Array(6)].map((_, i) => (
-                    <span key={i} className="w-3 h-3">
-                      {pin[i] ? '●' : '○'}
-                    </span>
-                  ))}
-                </div>
+            {/* PIN Display */}
+            <div className={`h-16 rounded-2xl bg-[hsl(220,15%,97%)] border-2 flex items-center justify-center ${
+              showError ? 'border-[hsl(0,75%,60%)] animate-shake' : 'border-[hsl(220,15%,90%)]'
+            }`}>
+              <div className="flex gap-3 text-3xl tracking-widest" style={{ fontFamily: 'Fredoka, sans-serif' }}>
+                {[...Array(6)].map((_, i) => (
+                  <span key={i} className="w-3 h-3">
+                    {pin[i] ? '●' : '○'}
+                  </span>
+                ))}
               </div>
-              {/* Hidden input for keyboard/numeric input */}
-              <input
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={pin}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  setPin(value);
-                }}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                placeholder="Enter PIN"
-                autoFocus
-                data-testid="input-pin-hidden"
-              />
             </div>
 
             {/* Number Pad */}
