@@ -25,19 +25,6 @@ export default function Login() {
   const [pin, setPin] = useState("");
   const [showError, setShowError] = useState(false);
 
-  // Check if user is already authenticated
-  const { data: currentUser } = useQuery({
-    queryKey: ["/api/user"],
-    retry: false,
-  });
-
-  // Redirect to dashboard if already authenticated
-  useEffect(() => {
-    if (currentUser) {
-      setLocation("/");
-    }
-  }, [currentUser, setLocation]);
-
   // Fetch all users for login selection
   const { data: users, isLoading } = useQuery<LoginUser[]>({
     queryKey: ["/api/auth/users"],
@@ -53,18 +40,18 @@ export default function Login() {
       }
       return response.json();
     },
-    onSuccess: async () => {
-      // Invalidate and refetch user query to ensure authentication state is updated
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+    onSuccess: () => {
+      // Clear any cached user query errors before redirecting
+      queryClient.removeQueries({ queryKey: ["/api/user"] });
       
+      // Show success message
       toast({
         title: "Welcome back! 🎉",
         description: "You've successfully logged in!",
       });
       
-      // Redirect after ensuring authentication state is updated
-      window.location.href = "/";
+      // Redirect using router
+      setLocation("/");
     },
     onError: (error: any) => {
       setShowError(true);
