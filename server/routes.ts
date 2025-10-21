@@ -7,6 +7,7 @@ import { z } from "zod";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { db } from "./db";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 
 // Extend express-session types
@@ -17,6 +18,66 @@ declare module 'express-session' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Helper function to hash PIN/password using bcrypt (salted, secure)
+  async function hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  }
+
+  // Helper function to verify password/PIN (supports legacy SHA-256 and new bcrypt)
+  async function verifyPassword(password: string, hash: string): Promise<boolean> {
+    // Try bcrypt first (for new accounts)
+    try {
+      const isBcryptValid = await bcrypt.compare(password, hash);
+      if (isBcryptValid) return true;
+    } catch (error) {
+      // If bcrypt fails, might be a legacy SHA-256 hash
+    }
+    
+    // Fall back to SHA-256 for legacy accounts
+    const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
+    return hash === sha256Hash;
+  }
+
+  // Helper function to check if hash is bcrypt format
+  function isBcryptHash(hash: string): boolean {
+    return hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$');
+  }
+
+  // Helper function to sanitize user object (remove sensitive fields)
+  function sanitizeUser(user: any) {
+    const { password, pin, ...safeUser } = user;
+    return safeUser;
+  }
+
+  // Initialize default admin account if no users exist
+  async function initializeDefaultAdmin() {
+    try {
+      const users = await storage.getUsers();
+      if (users.length === 0) {
+        const defaultPin = "1234"; // Default PIN
+        await storage.createUser({
+          username: "admin",
+          password: await hashPassword("admin"),
+          pin: await hashPassword(defaultPin),
+          displayName: "Admin",
+          avatar: "👑",
+          avatarType: "emoji",
+          isAdmin: true,
+        });
+        console.log("✅ Default admin account created");
+        console.log("   Username: admin");
+        console.log("   PIN: 1234");
+        console.log("   ⚠️  Please change the PIN after first login for security!");
+      }
+    } catch (error) {
+      console.error("Failed to initialize default admin:", error);
+    }
+  }
+
+  // Initialize default admin on startup
+  await initializeDefaultAdmin();
+
   // Setup session store - use PostgreSQL if available, otherwise fall back to memory store
   let sessionStore;
   
@@ -44,11 +105,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     })
   );
-
-  // Helper function to hash PIN/password
-  function hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
-  }
 
   // Helper function to get current user from request
   function getCurrentUserId(req: Request): string | null {
@@ -161,9 +217,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify PIN
-      const hashedPin = hashPassword(pin);
-      if (user.pin !== hashedPin) {
+      const isPinValid = await verifyPassword(pin, user.pin);
+      if (!isPinValid) {
         return res.status(401).json({ message: "Invalid PIN" });
+      }
+
+      // Migrate legacy SHA-256 hash to bcrypt on successful login
+      if (!isBcryptHash(user.pin)) {
+        const newPinHash = await hashPassword(pin);
+        await storage.updateUser(user.id, { pin: newPinHash });
       }
 
       // Set session
@@ -210,31 +272,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(user);
+      res.json(sanitizeUser(user));
     } catch (error) {
       res.status(500).json({ message: "Failed to get user" });
     }
   });
   
-  // Get all family members
-  app.get("/api/users", async (req, res) => {
+  // Get all family members (requires authentication)
+  app.get("/api/users", requireAuth, async (req, res) => {
     try {
       const users = await storage.getUsers();
-      res.json(users);
+      // Remove sensitive fields from response
+      const safeUsers = users.map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        avatar: u.avatar,
+        avatarType: u.avatarType,
+        avatarUrl: u.avatarUrl,
+        points: u.points,
+        isAdmin: u.isAdmin,
+      }));
+      res.json(safeUsers);
     } catch (error) {
       res.status(500).json({ message: "Failed to get users" });
     }
   });
 
-  // Update user profile
-  app.put("/api/users/:id", async (req, res) => {
+  // Update user profile (requires owner or admin access)
+  app.put("/api/users/:id", requireAuth, requireOwnerOrAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = insertUserSchema.partial().omit({ password: true }).parse(req.body);
       
       // Hash PIN if it's being updated
       if (updates.pin) {
-        updates.pin = hashPassword(updates.pin);
+        updates.pin = await hashPassword(updates.pin);
       }
       
       const user = await storage.updateUser(id, updates);
@@ -242,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(user);
+      res.json(sanitizeUser(user));
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid user data", errors: error.errors });
@@ -251,21 +324,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new family member
-  app.post("/api/users", async (req, res) => {
+  // Create new family member (requires authentication)
+  app.post("/api/users", requireAuth, async (req, res) => {
     try {
       const parsedData = insertUserSchema.omit({ password: true }).parse(req.body);
       
-      // For family management, set a default password
+      // For family management, set a default password and hash it securely
       const userData = {
         ...parsedData,
-        password: "family", // Default password for family members
+        password: await hashPassword("family"), // Hash default password for family members
         isAdmin: false // Family members are not admins by default
       };
 
       // Hash PIN if provided
       if (userData.pin) {
-        userData.pin = hashPassword(userData.pin);
+        userData.pin = await hashPassword(userData.pin);
       }
       
       // Check if username already exists
@@ -275,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.createUser(userData);
-      res.status(201).json(user);
+      res.status(201).json(sanitizeUser(user));
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid user data", errors: error.errors });
@@ -312,7 +385,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.updateUser(id, { isAdmin });
-      res.json(user);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(sanitizeUser(user));
     } catch (error) {
       res.status(500).json({ message: "Failed to update admin status" });
     }
@@ -725,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get upload URL for avatar image (requires owner or admin access)
-  app.post("/api/users/:id/avatar-upload", requireOwnerOrAdmin, async (req, res) => {
+  app.post("/api/users/:id/avatar-upload", requireAuth, requireOwnerOrAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -746,7 +822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user avatar after upload (requires owner or admin access)
-  app.put("/api/users/:id/avatar", requireOwnerOrAdmin, async (req, res) => {
+  app.put("/api/users/:id/avatar", requireAuth, requireOwnerOrAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { avatarUrl } = req.body;
@@ -802,7 +878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         objectPath: objectPath,
-        user: updatedUser
+        user: sanitizeUser(updatedUser)
       });
     } catch (error) {
       console.error("Error updating user avatar:", error);
