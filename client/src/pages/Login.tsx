@@ -47,19 +47,17 @@ export default function Login() {
     onSuccess: (data) => {
       console.log("Login onSuccess called with data:", data);
       
-      // Clear any cached user query errors before redirecting
-      queryClient.removeQueries({ queryKey: ["/api/user"] });
-      
       // Show success message
       toast({
         title: "Welcome back! 🎉",
         description: "You've successfully logged in!",
       });
       
-      console.log("About to redirect to /");
-      // Redirect using router
-      setLocation("/");
-      console.log("setLocation called");
+      console.log("About to redirect with full page reload");
+      // Force full page reload to ensure session cookie is properly recognized
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
     onError: (error: any) => {
       setShowError(true);
