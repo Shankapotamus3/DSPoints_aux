@@ -33,49 +33,19 @@ export default function Login() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async ({ userId, pin }: { userId: string; pin: string }) => {
-      console.log("Login attempt for userId:", userId);
       const response = await apiRequest("POST", "/api/auth/login", { userId, pin });
-      console.log("Login response status:", response.status);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Login failed");
       }
-      const data = await response.json();
-      console.log("Login successful, data:", data);
-      return data;
+      return response.json();
     },
-    onSuccess: async (data) => {
-      console.log("Login onSuccess called with data:", data);
-      
-      // Show success message
-      toast({
-        title: "Welcome back! 🎉",
-        description: "You've successfully logged in!",
-      });
-      
-      console.log("Clearing cache and verifying session...");
+    onSuccess: () => {
       // Clear all cached queries
       queryClient.clear();
       
-      // Verify session is working before redirect
-      try {
-        const userCheck = await fetch("/api/user", { credentials: "include" });
-        console.log("User check status:", userCheck.status);
-        
-        if (userCheck.ok) {
-          console.log("Session verified, redirecting...");
-          window.location.href = "/";
-        } else {
-          console.error("Session not established, status:", userCheck.status);
-          toast({
-            title: "Session Error",
-            description: "Please try logging in again",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Error verifying session:", error);
-      }
+      // Do a full page reload to root - this ensures cookies are properly sent
+      window.location.assign("/");
     },
     onError: (error: any) => {
       setShowError(true);

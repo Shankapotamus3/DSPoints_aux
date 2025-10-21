@@ -23,17 +23,13 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     retry: false,
   });
 
-  console.log("ProtectedRoute - location:", location, "isLoading:", isLoading, "hasUser:", !!user, "hasError:", !!error);
-
   useEffect(() => {
     if (!isLoading && (error || !user)) {
-      console.log("ProtectedRoute - redirecting to /login because:", error ? "error" : "no user");
       setLocation("/login");
     }
   }, [isLoading, error, user, setLocation]);
 
   if (isLoading) {
-    console.log("ProtectedRoute - showing loading state");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -42,11 +38,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (error || !user) {
-    console.log("ProtectedRoute - returning null (redirecting to login)");
     return null;
   }
 
-  console.log("ProtectedRoute - rendering component");
   return <Component />;
 }
 
