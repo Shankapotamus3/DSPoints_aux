@@ -21,6 +21,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   let sessionStore;
   
   if (process.env.DATABASE_URL) {
+    console.log("[Session] Using PostgreSQL session store");
     const PgSession = connectPgSimple(session);
     sessionStore = new PgSession({
       conObject: {
@@ -29,6 +30,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       tableName: "session",
       createTableIfMissing: true,
     });
+    
+    // Test the store connection
+    sessionStore.on('error', (error: any) => {
+      console.error("[Session] Store error:", error);
+    });
+  } else {
+    console.log("[Session] No DATABASE_URL, session store will be memory-based");
   }
   
   app.use(
@@ -47,6 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     })
   );
+  
+  console.log("[Session] Session middleware configured");
 
   // Helper function to hash PIN/password
   function hashPassword(password: string): string {
@@ -202,18 +212,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set session and explicitly save it
       req.session.userId = user.id;
       
-      console.log("[Login] About to save session. Session ID:", req.sessionID);
-      console.log("[Login] User ID being saved:", user.id);
+      console.log("[Login] Session object BEFORE save:", {
+        sessionID: req.sessionID,
+        userId: req.session.userId,
+        cookie: req.session.cookie
+      });
       
       // Explicitly save session before responding
       req.session.save((err) => {
         if (err) {
-          console.error("Session save error:", err);
+          console.error("[Login] Session save error:", err);
           return res.status(500).json({ message: "Failed to save session" });
         }
         
         console.log("[Login] Session saved successfully!");
-        console.log("[Login] Response headers will include:", res.getHeaders());
+        console.log("[Login] Session object AFTER save:", {
+          sessionID: req.sessionID,
+          userId: req.session.userId,
+          cookie: req.session.cookie
+        });
+        console.log("[Login] Response header 'Set-Cookie':", res.getHeader('Set-Cookie'));
         
         res.json({ 
           message: "Login successful",
@@ -228,6 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isAdmin: user.isAdmin,
           }
         });
+        
+        console.log("[Login] Response sent. Final 'Set-Cookie' header:", res.getHeader('Set-Cookie'));
       });
     } catch (error) {
       console.error("Login error:", error);
