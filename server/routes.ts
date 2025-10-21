@@ -228,21 +228,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(user.id, { pin: newPinHash });
       }
 
-      // Set session
+      // Set session and explicitly save it
       req.session.userId = user.id;
       
-      res.json({ 
-        message: "Login successful",
-        user: {
-          id: user.id,
-          username: user.username,
-          displayName: user.displayName,
-          avatar: user.avatar,
-          avatarType: user.avatarType,
-          avatarUrl: user.avatarUrl,
-          points: user.points,
-          isAdmin: user.isAdmin,
+      // Explicitly save session before responding
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Login failed - session error" });
         }
+        
+        res.json({ 
+          message: "Login successful",
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            avatar: user.avatar,
+            avatarType: user.avatarType,
+            avatarUrl: user.avatarUrl,
+            points: user.points,
+            isAdmin: user.isAdmin,
+          }
+        });
       });
     } catch (error) {
       console.error("Login error:", error);
