@@ -34,6 +34,7 @@ export default function AddFamilyMemberModal({ open, onClose }: AddFamilyMemberM
     avatar: "👤",
     avatarType: "emoji",
     avatarUrl: undefined,
+    pin: "",
   });
   
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export default function AddFamilyMemberModal({ open, onClose }: AddFamilyMemberM
       avatar: "👤",
       avatarType: "emoji",
       avatarUrl: undefined,
+      pin: "",
     });
     setUploadedImageUrl(null);
     setAvatarTab("emoji");
@@ -147,6 +149,26 @@ export default function AddFamilyMemberModal({ open, onClose }: AddFamilyMemberM
             />
             <p className="text-xs text-muted-foreground mt-1">
               Friendly name shown in the app (optional)
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="pin">PIN (4-6 digits)</Label>
+            <Input
+              id="pin"
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={formData.pin || ""}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                setFormData({ ...formData, pin: value });
+              }}
+              placeholder="Set login PIN"
+              data-testid="input-pin"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Used for quick login access
             </p>
           </div>
           

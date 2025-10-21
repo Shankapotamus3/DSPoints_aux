@@ -33,6 +33,7 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
     avatar: user.avatar,
     avatarType: user.avatarType || "emoji",
     avatarUrl: user.avatarUrl,
+    pin: "",
   });
   
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(
@@ -76,7 +77,12 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    // Only include PIN if it was entered
+    const updates = { ...formData };
+    if (!updates.pin) {
+      delete updates.pin;
+    }
+    updateMutation.mutate(updates);
   };
 
   const handleClose = () => {
@@ -85,6 +91,7 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
       avatar: user.avatar,
       avatarType: user.avatarType || "emoji",
       avatarUrl: user.avatarUrl,
+      pin: "",
     });
     setUploadedImageUrl(user.avatarType === "image" && user.avatarUrl ? user.avatarUrl : null);
     setAvatarTab(user.avatarType === "image" ? "upload" : "emoji");
@@ -112,6 +119,26 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
             />
             <p className="text-xs text-muted-foreground mt-1">
               Friendly name shown in the app
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="pin">PIN (4-6 digits)</Label>
+            <Input
+              id="pin"
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={formData.pin}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                setFormData({ ...formData, pin: value });
+              }}
+              placeholder={user.pin ? "Enter new PIN to change" : "Set your PIN"}
+              data-testid="input-edit-pin"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {user.pin ? "Leave blank to keep current PIN" : "Required for login"}
             </p>
           </div>
           

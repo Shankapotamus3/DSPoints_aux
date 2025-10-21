@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  pin: text("pin"), // Hashed PIN for quick family login
   points: integer("points").notNull().default(0),
   displayName: text("display_name"),
   avatar: text("avatar").default("👤"),
@@ -81,6 +82,13 @@ export const insertUserSchema = createInsertSchema(users).omit({
     return url.startsWith('/objects/') || url.startsWith('https://storage.googleapis.com/');
   }, {
     message: 'Avatar URL must be a valid object storage URL (must start with /objects/ or https://storage.googleapis.com/)'
+  }),
+  pin: z.string().nullish().refine((pin) => {
+    if (!pin) return true; // PIN is optional
+    // PIN must be 4-6 digits
+    return /^\d{4,6}$/.test(pin);
+  }, {
+    message: 'PIN must be 4-6 digits'
   }),
 });
 

@@ -4,21 +4,69 @@ import { storage } from "./storage";
 import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema, choreApprovalSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { db } from "./db";
+import crypto from "crypto";
+
+// Extend express-session types
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const USER_ID = "23391fd0-66f6-4e7b-bed1-1b71a93a6d9d"; // Default user for MVP
+  // Setup session store - use PostgreSQL if available, otherwise fall back to memory store
+  let sessionStore;
+  
+  if (process.env.DATABASE_URL) {
+    const PgSession = connectPgSimple(session);
+    sessionStore = new PgSession({
+      conObject: {
+        connectionString: process.env.DATABASE_URL,
+      },
+      tableName: "session",
+      createTableIfMissing: true,
+    });
+  }
+  
+  app.use(
+    session({
+      store: sessionStore,
+      secret: process.env.SESSION_SECRET || "chore-rewards-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      },
+    })
+  );
 
-  // Helper function to get current user from request (MVP: using default user)
-  // In production, this would extract user ID from session/JWT token
-  function getCurrentUserId(req: Request): string {
-    // For MVP, we use the default user, but in production this would be:
-    // return req.user?.id || req.session?.userId || req.headers.authorization
-    return USER_ID;
+  // Helper function to hash PIN/password
+  function hashPassword(password: string): string {
+    return crypto.createHash('sha256').update(password).digest('hex');
+  }
+
+  // Helper function to get current user from request
+  function getCurrentUserId(req: Request): string | null {
+    return req.session.userId || null;
+  }
+
+  // Middleware to require authentication
+  function requireAuth(req: Request, res: Response, next: NextFunction) {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    next();
   }
 
   // Helper function to check admin permissions for requesting user
   async function checkAdminPermission(req: Request): Promise<boolean> {
     const currentUserId = getCurrentUserId(req);
+    if (!currentUserId) return false;
     const user = await storage.getUser(currentUserId);
     return user?.isAdmin === true;
   }
@@ -71,10 +119,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Get current user with points
-  app.get("/api/user", async (req, res) => {
+  // Authentication Routes
+  
+  // Get all users for login selection (public endpoint)
+  app.get("/api/auth/users", async (req, res) => {
     try {
-      const user = await storage.getUser(USER_ID);
+      const users = await storage.getUsers();
+      // Return only safe user info for login screen
+      const safeUsers = users.map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        avatar: u.avatar,
+        avatarType: u.avatarType,
+        avatarUrl: u.avatarUrl,
+        hasPin: !!u.pin,
+      }));
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // PIN login endpoint
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { userId, pin } = req.body;
+      
+      if (!userId || !pin) {
+        return res.status(400).json({ message: "User ID and PIN are required" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Check if user has a PIN set
+      if (!user.pin) {
+        return res.status(401).json({ message: "PIN not set for this user" });
+      }
+
+      // Verify PIN
+      const hashedPin = hashPassword(pin);
+      if (user.pin !== hashedPin) {
+        return res.status(401).json({ message: "Invalid PIN" });
+      }
+
+      // Set session
+      req.session.userId = user.id;
+      
+      res.json({ 
+        message: "Login successful",
+        user: {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          avatarType: user.avatarType,
+          avatarUrl: user.avatarUrl,
+          points: user.points,
+          isAdmin: user.isAdmin,
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logout successful" });
+    });
+  });
+
+  // Get current user with points (requires authentication)
+  app.get("/api/user", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -100,6 +232,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const updates = insertUserSchema.partial().omit({ password: true }).parse(req.body);
       
+      // Hash PIN if it's being updated
+      if (updates.pin) {
+        updates.pin = hashPassword(updates.pin);
+      }
+      
       const user = await storage.updateUser(id, updates);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -117,12 +254,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new family member
   app.post("/api/users", async (req, res) => {
     try {
-      // For family management, set a default password since authentication isn't the focus
+      const parsedData = insertUserSchema.omit({ password: true }).parse(req.body);
+      
+      // For family management, set a default password
       const userData = {
-        ...insertUserSchema.omit({ password: true }).parse(req.body),
+        ...parsedData,
         password: "family", // Default password for family members
         isAdmin: false // Family members are not admins by default
       };
+
+      // Hash PIN if provided
+      if (userData.pin) {
+        userData.pin = hashPassword(userData.pin);
+      }
       
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(userData.username);
@@ -228,6 +372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { comment } = choreApprovalSchema.parse(req.body);
       
       const currentUserId = getCurrentUserId(req);
+      if (!currentUserId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
 
       const chore = await storage.getChore(id);
       if (!chore) {
@@ -244,31 +391,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to approve chore" });
       }
 
-      // Award points to assigned user (or default user if no assignment)
-      const userId = approvedChore.assignedToId || USER_ID;
-      const user = await storage.getUser(userId);
-      if (user) {
-        const newPoints = user.points + approvedChore.points;
-        await storage.updateUserPoints(userId, newPoints);
-        
-        // Create transaction record
-        await storage.createTransaction({
-          type: "earn",
-          amount: approvedChore.points,
-          description: `Approved: ${approvedChore.name}`,
-          choreId: approvedChore.id,
-          rewardId: null,
-          userId: userId,
-        });
+      // Award points to assigned user
+      const userId = approvedChore.assignedToId;
+      if (userId) {
+        const user = await storage.getUser(userId);
+        if (user) {
+          const newPoints = user.points + approvedChore.points;
+          await storage.updateUserPoints(userId, newPoints);
+          
+          // Create transaction record
+          await storage.createTransaction({
+            type: "earn",
+            amount: approvedChore.points,
+            description: `Approved: ${approvedChore.name}`,
+            choreId: approvedChore.id,
+            rewardId: null,
+            userId: userId,
+          });
 
-        // Send approval notification to the user who completed the chore
-        await sendNotification(
-          userId,
-          "Chore Approved! 🎉",
-          `Your completion of "${approvedChore.name}" has been approved. You earned ${approvedChore.points} points!`,
-          "chore_approved",
-          approvedChore.id
-        );
+          // Send approval notification to the user who completed the chore
+          await sendNotification(
+            userId,
+            "Chore Approved! 🎉",
+            `Your completion of "${approvedChore.name}" has been approved. You earned ${approvedChore.points} points!`,
+            "chore_approved",
+            approvedChore.id
+          );
+        }
       }
 
       res.json(approvedChore);
@@ -286,6 +435,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { comment } = choreApprovalSchema.parse(req.body);
       
       const currentUserId = getCurrentUserId(req);
+      if (!currentUserId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
 
       const chore = await storage.getChore(id);
       if (!chore) {
@@ -303,14 +455,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Send rejection notification to the user who completed the chore
-      const userId = rejectedChore.assignedToId || USER_ID;
-      await sendNotification(
-        userId,
-        "Chore Rejected",
-        `Your completion of "${rejectedChore.name}" was rejected. ${comment ? `Reason: ${comment}` : 'Please try again.'}`,
-        "chore_rejected",
-        rejectedChore.id
-      );
+      const userId = rejectedChore.assignedToId;
+      if (userId) {
+        await sendNotification(
+          userId,
+          "Chore Rejected",
+          `Your completion of "${rejectedChore.name}" was rejected. ${comment ? `Reason: ${comment}` : 'Please try again.'}`,
+          "chore_rejected",
+          rejectedChore.id
+        );
+      }
 
       res.json(rejectedChore);
     } catch (error) {
@@ -332,18 +486,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notification routes
-  app.get("/api/notifications", async (req, res) => {
+  app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
-      const notifications = await storage.getNotifications(USER_ID);
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const notifications = await storage.getNotifications(userId);
       res.json(notifications);
     } catch (error) {
       res.status(500).json({ message: "Failed to get notifications" });
     }
   });
 
-  app.get("/api/notifications/unread", async (req, res) => {
+  app.get("/api/notifications/unread", requireAuth, async (req, res) => {
     try {
-      const notifications = await storage.getUnreadNotifications(USER_ID);
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const notifications = await storage.getUnreadNotifications(userId);
       res.json(notifications);
     } catch (error) {
       res.status(500).json({ message: "Failed to get unread notifications" });
@@ -363,9 +527,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/notifications/mark-all-read", async (req, res) => {
+  app.put("/api/notifications/mark-all-read", requireAuth, async (req, res) => {
     try {
-      await storage.markAllNotificationsAsRead(USER_ID);
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      await storage.markAllNotificationsAsRead(userId);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
       res.status(500).json({ message: "Failed to mark all notifications as read" });
@@ -425,15 +594,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/rewards/:id/claim", async (req, res) => {
+  app.post("/api/rewards/:id/claim", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
       const reward = await storage.getReward(id);
       if (!reward) {
         return res.status(404).json({ message: "Reward not found" });
       }
 
-      const user = await storage.getUser(USER_ID);
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -444,7 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Deduct points from user
       const newPoints = user.points - reward.cost;
-      await storage.updateUserPoints(USER_ID, newPoints);
+      await storage.updateUserPoints(userId, newPoints);
 
       // Mark reward as unavailable (one-time use)
       await storage.updateReward(id, { isAvailable: false });
@@ -496,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user can access this object (with proper ACL enforcement)
       const canAccess = await objectStorageService.canAccessObjectEntity({
-        userId: currentUserId,
+        userId: currentUserId || undefined, // Convert null to undefined
         objectFile: objectFile,
         requestedPermission: undefined // defaults to READ permission
       });
