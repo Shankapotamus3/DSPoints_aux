@@ -33,14 +33,19 @@ export default function Login() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async ({ userId, pin }: { userId: string; pin: string }) => {
+      console.log("[Login] Mutation function called with userId:", userId);
       const response = await apiRequest("POST", "/api/auth/login", { userId, pin });
+      console.log("[Login] Response status:", response.status);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Login failed");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("[Login] Login successful, response data:", data);
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[Login] onSuccess called, redirecting to /");
       // Do a full page reload to ensure cookies are properly set
       window.location.replace("/");
     },
@@ -71,6 +76,7 @@ export default function Login() {
   // Auto-submit when PIN reaches 4-6 digits
   useEffect(() => {
     if (pin.length >= 4 && pin.length <= 6 && selectedUser) {
+      console.log("[Login] Attempting login for user:", selectedUser.id, "with PIN length:", pin.length);
       loginMutation.mutate({ userId: selectedUser.id, pin });
     }
   }, [pin, selectedUser]);
