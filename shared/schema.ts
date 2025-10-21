@@ -75,12 +75,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   points: true,
 }).extend({
   avatarType: z.enum(['emoji', 'image']).optional(),
-  avatarUrl: z.string().url().optional().refine((url) => {
+  avatarUrl: z.string().optional().refine((url) => {
     if (!url) return true; // Allow empty/undefined
     // Must be a valid URL that starts with /objects/ (internal path) or https://storage.googleapis.com/
     return url.startsWith('/objects/') || url.startsWith('https://storage.googleapis.com/');
   }, {
-    message: 'Avatar URL must be a valid object storage URL'
+    message: 'Avatar URL must be a valid object storage URL (must start with /objects/ or https://storage.googleapis.com/)'
   }),
 });
 

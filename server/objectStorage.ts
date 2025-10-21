@@ -217,20 +217,28 @@ export class ObjectStorageService {
   
     // Extract the path from the URL by removing query parameters and domain
     const url = new URL(rawPath);
-    const rawObjectPath = url.pathname;
+    const rawObjectPath = url.pathname; // e.g., /bucket-name/.private/userId/avatars/uuid
   
-    let objectEntityDir = this.getPrivateObjectDir();
+    let objectEntityDir = this.getPrivateObjectDir(); // e.g., .private
+    if (!objectEntityDir.startsWith("/")) {
+      objectEntityDir = `/${objectEntityDir}`;
+    }
     if (!objectEntityDir.endsWith("/")) {
       objectEntityDir = `${objectEntityDir}/`;
     }
   
-    if (!rawObjectPath.startsWith(objectEntityDir)) {
-      return rawObjectPath;
+    // The pathname includes the bucket name, so we need to find where privateObjectDir starts
+    // e.g., /bucket-name/.private/ -> we want to find /.private/
+    const privateDirIndex = rawObjectPath.indexOf(objectEntityDir);
+    if (privateDirIndex === -1) {
+      // Private dir not found in path, return as-is
+      return rawPath;
     }
   
-    // Extract the entity ID from the path
-    const entityId = rawObjectPath.slice(objectEntityDir.length);
-    return `/objects/${entityId}`;
+    // Extract the entity ID from after the private directory
+    // e.g., /bucket-name/.private/userId/avatars/uuid -> userId/avatars/uuid
+    const pathAfterPrivateDir = rawObjectPath.slice(privateDirIndex + objectEntityDir.length);
+    return `/objects/${pathAfterPrivateDir}`;
   }
 
   // Tries to set the ACL policy for the object entity and return the normalized path.
