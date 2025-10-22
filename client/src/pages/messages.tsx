@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export default function Messages() {
   const [messageInput, setMessageInput] = useState("");
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get current user
   const { data: currentUser } = useQuery<User>({
@@ -145,6 +146,15 @@ export default function Messages() {
   const selectedUser = users?.find(u => u.id === selectedUserId);
   const otherUsers = users?.filter(u => u.id !== currentUser?.id);
 
+  // Auto-scroll to bottom when conversation changes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversation]);
+
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 pb-24 md:pb-6">
       <h1 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Messages</h1>
@@ -245,6 +255,7 @@ export default function Messages() {
                       No messages yet. Start the conversation!
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
