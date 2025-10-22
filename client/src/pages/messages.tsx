@@ -163,7 +163,7 @@ export default function Messages() {
 
       <Card className="h-[calc(100vh-16rem)] md:h-[calc(100vh-12rem)] flex flex-col md:flex-row overflow-hidden">
         {/* User List - Sidebar */}
-        <div className="w-full md:w-80 border-b md:border-r border-border bg-muted/20">
+        <div className={`w-full md:w-80 border-b md:border-r border-border bg-muted/20 ${selectedUserId ? 'hidden md:block' : ''}`}>
           <div className="p-4 border-b border-border">
             <h2 className="font-semibold text-lg">Family Members</h2>
           </div>
@@ -201,11 +201,20 @@ export default function Messages() {
         </div>
 
         {/* Conversation Area */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col ${!selectedUserId ? 'hidden md:flex' : ''}`}>
           {selectedUserId && selectedUser ? (
             <>
               {/* Conversation Header */}
               <div className="p-4 border-b border-border bg-muted/20 flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedUserId(null)}
+                  className="md:hidden mr-2 p-1 hover:bg-muted rounded"
+                  data-testid="button-back-to-users"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6"/>
+                  </svg>
+                </button>
                 <Avatar className="w-10 h-10">
                   {selectedUser.avatarType === "image" && selectedUser.avatarUrl ? (
                     <AvatarImage src={selectedUser.avatarUrl} alt={selectedUser.displayName} />
