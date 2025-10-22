@@ -222,7 +222,7 @@ export default function Messages() {
               {/* Messages */}
               <div 
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto p-4"
+                className="flex-1 overflow-y-auto p-4 min-h-0"
               >
                 <div className="space-y-4">
                   {conversation.map((message) => {
