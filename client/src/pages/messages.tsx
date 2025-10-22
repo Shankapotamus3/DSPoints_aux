@@ -35,7 +35,7 @@ export default function Messages() {
   const [messageInput, setMessageInput] = useState("");
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Get current user
   const { data: currentUser } = useQuery<User>({
@@ -146,27 +146,16 @@ export default function Messages() {
   const selectedUser = users?.find(u => u.id === selectedUserId);
   const otherUsers = users?.filter(u => u.id !== currentUser?.id);
 
-  // Callback ref to get the ScrollArea's viewport element
-  const scrollAreaRef = (node: HTMLDivElement | null) => {
-    if (node) {
-      // Find the viewport element inside the ScrollArea
-      const viewport = node.querySelector('[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        scrollViewportRef.current = viewport as HTMLDivElement;
-      }
-    }
-  };
-
-  // Auto-scroll to bottom when conversation changes
+  // Auto-scroll to bottom when conversation changes or user selects a conversation
   const scrollToBottom = () => {
-    if (scrollViewportRef.current) {
-      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [conversation]);
+  }, [conversation, selectedUserId]);
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 pb-24 md:pb-6">
@@ -231,7 +220,10 @@ export default function Messages() {
               </div>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4"
+              >
                 <div className="space-y-4">
                   {conversation.map((message) => {
                     const isSent = message.senderId === currentUser?.id;
@@ -269,7 +261,7 @@ export default function Messages() {
                     </div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
 
               {/* Message Input */}
               <div className="p-4 border-t border-border bg-muted/20">
