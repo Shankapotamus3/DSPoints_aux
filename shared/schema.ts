@@ -90,6 +90,15 @@ export const punishments = pgTable("punishments", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   points: true,
@@ -160,6 +169,11 @@ export const insertPunishmentSchema = createInsertSchema(punishments).omit({
   number: z.number().int().min(1).max(59),
 });
 
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const choreApprovalSchema = z.object({
   comment: z.string().optional(),
 });
@@ -178,6 +192,8 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertPunishment = z.infer<typeof insertPunishmentSchema>;
 export type Punishment = typeof punishments.$inferSelect;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
 
 // Enum-like types for better type safety
