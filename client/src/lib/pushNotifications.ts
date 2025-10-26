@@ -32,10 +32,15 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 // Subscribe to push notifications
 export async function subscribeToPushNotifications(): Promise<void> {
+  console.log('subscribeToPushNotifications: Starting subscription process...');
+  
   try {
     // Check if already granted
+    console.log('subscribeToPushNotifications: Current permission:', Notification.permission);
     if (Notification.permission !== 'granted') {
+      console.log('subscribeToPushNotifications: Requesting permission...');
       const permission = await requestNotificationPermission();
+      console.log('subscribeToPushNotifications: Permission result:', permission);
       if (permission !== 'granted') {
         console.log('Push notification permission denied');
         return;
@@ -43,26 +48,35 @@ export async function subscribeToPushNotifications(): Promise<void> {
     }
 
     // Get service worker registration
+    console.log('subscribeToPushNotifications: Waiting for service worker...');
     const registration = await navigator.serviceWorker.ready;
+    console.log('subscribeToPushNotifications: Service worker ready');
 
     // Get existing subscription
+    console.log('subscribeToPushNotifications: Checking for existing subscription...');
     let subscription = await registration.pushManager.getSubscription();
+    console.log('subscribeToPushNotifications: Existing subscription:', subscription ? 'found' : 'not found');
 
     // If no subscription, create one
     if (!subscription) {
+      console.log('subscribeToPushNotifications: Fetching VAPID public key...');
       // Get VAPID public key from server
       const response = await fetch('/api/push/vapid-public-key');
       const { publicKey } = await response.json();
+      console.log('subscribeToPushNotifications: VAPID key received, length:', publicKey?.length);
 
       // Subscribe to push
+      console.log('subscribeToPushNotifications: Creating push subscription...');
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
+      console.log('subscribeToPushNotifications: Push subscription created');
     }
 
     // Send subscription to server
     if (subscription) {
+      console.log('subscribeToPushNotifications: Sending subscription to server...');
       const subscriptionJSON = subscription.toJSON();
       await apiRequest('POST', '/api/push/subscribe', {
         endpoint: subscriptionJSON.endpoint,
