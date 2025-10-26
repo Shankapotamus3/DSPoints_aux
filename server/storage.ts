@@ -11,13 +11,16 @@ import {
   type InsertNotification,
   type Message,
   type InsertMessage,
+  type Punishment,
+  type InsertPunishment,
   type ChoreStatus,
   users,
   chores,
   rewards,
   transactions,
   notifications,
-  messages
+  messages,
+  punishments
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, or, and, desc } from "drizzle-orm";
@@ -69,6 +72,12 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   markMessageAsRead(id: string): Promise<Message | undefined>;
   markConversationAsRead(userId: string, otherUserId: string): Promise<void>;
+
+  // Punishment methods
+  getPunishments(): Promise<Punishment[]>;
+  createPunishment(punishment: InsertPunishment): Promise<Punishment>;
+  markPunishmentComplete(id: string): Promise<Punishment | undefined>;
+  deletePunishment(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -369,6 +378,33 @@ export class DatabaseStorage implements IStorage {
         eq(messages.recipientId, userId),
         eq(messages.isRead, false)
       ));
+  }
+
+  // Punishment methods
+  async getPunishments(): Promise<Punishment[]> {
+    return await db.select().from(punishments).orderBy(punishments.createdAt);
+  }
+
+  async createPunishment(insertPunishment: InsertPunishment): Promise<Punishment> {
+    const [punishment] = await db
+      .insert(punishments)
+      .values(insertPunishment)
+      .returning();
+    return punishment;
+  }
+
+  async markPunishmentComplete(id: string): Promise<Punishment | undefined> {
+    const [punishment] = await db
+      .update(punishments)
+      .set({ isCompleted: true, completedAt: new Date() })
+      .where(eq(punishments.id, id))
+      .returning();
+    return punishment || undefined;
+  }
+
+  async deletePunishment(id: string): Promise<boolean> {
+    const result = await db.delete(punishments).where(eq(punishments.id, id)).returning();
+    return result.length > 0;
   }
   
   async resetRecurringChores(): Promise<void> {

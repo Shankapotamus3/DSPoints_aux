@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema, choreApprovalSchema, insertMessageSchema } from "@shared/schema";
+import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema, choreApprovalSchema, insertMessageSchema, insertPunishmentSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 import session from "express-session";
@@ -1066,6 +1066,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking message as read:", error);
       res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  // ====================
+  // PUNISHMENT ROUTES
+  // ====================
+
+  // Get all punishments
+  app.get("/api/punishments", requireAuth, async (req, res) => {
+    try {
+      const punishments = await storage.getPunishments();
+      res.json(punishments);
+    } catch (error) {
+      console.error("Error getting punishments:", error);
+      res.status(500).json({ message: "Failed to get punishments" });
+    }
+  });
+
+  // Create a punishment
+  app.post("/api/punishments", requireAuth, async (req, res) => {
+    try {
+      const punishmentData = insertPunishmentSchema.parse(req.body);
+      const punishment = await storage.createPunishment(punishmentData);
+      res.json(punishment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid punishment data", errors: error.errors });
+      }
+      console.error("Error creating punishment:", error);
+      res.status(500).json({ message: "Failed to create punishment" });
+    }
+  });
+
+  // Mark punishment as complete
+  app.put("/api/punishments/:id/complete", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const punishment = await storage.markPunishmentComplete(id);
+
+      if (!punishment) {
+        return res.status(404).json({ message: "Punishment not found" });
+      }
+
+      res.json(punishment);
+    } catch (error) {
+      console.error("Error marking punishment as complete:", error);
+      res.status(500).json({ message: "Failed to mark punishment as complete" });
+    }
+  });
+
+  // Delete a punishment
+  app.delete("/api/punishments/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePunishment(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Punishment not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting punishment:", error);
+      res.status(500).json({ message: "Failed to delete punishment" });
     }
   });
 
