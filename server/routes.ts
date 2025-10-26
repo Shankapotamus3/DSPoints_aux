@@ -1099,6 +1099,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update punishment text
+  app.put("/api/punishments/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateSchema = z.object({
+        text: z.string().trim().max(500).optional(),
+      });
+      const { text } = updateSchema.parse(req.body);
+      const punishment = await storage.updatePunishment(id, text || "");
+
+      if (!punishment) {
+        return res.status(404).json({ message: "Punishment not found" });
+      }
+
+      res.json(punishment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid text data", errors: error.errors });
+      }
+      console.error("Error updating punishment:", error);
+      res.status(500).json({ message: "Failed to update punishment" });
+    }
+  });
+
   // Mark punishment as complete
   app.put("/api/punishments/:id/complete", requireAuth, async (req, res) => {
     try {

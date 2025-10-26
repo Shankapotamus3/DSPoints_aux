@@ -84,6 +84,7 @@ export const messages = pgTable("messages", {
 export const punishments = pgTable("punishments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   number: integer("number").notNull(), // Random number 1-59
+  text: text("text"), // Optional text description
   isCompleted: boolean("is_completed").notNull().default(false),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

@@ -76,6 +76,7 @@ export interface IStorage {
   // Punishment methods
   getPunishments(): Promise<Punishment[]>;
   createPunishment(punishment: InsertPunishment): Promise<Punishment>;
+  updatePunishment(id: string, text: string): Promise<Punishment | undefined>;
   markPunishmentComplete(id: string): Promise<Punishment | undefined>;
   deletePunishment(id: string): Promise<boolean>;
 }
@@ -391,6 +392,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertPunishment)
       .returning();
     return punishment;
+  }
+
+  async updatePunishment(id: string, text: string): Promise<Punishment | undefined> {
+    const [punishment] = await db
+      .update(punishments)
+      .set({ text })
+      .where(eq(punishments.id, id))
+      .returning();
+    return punishment || undefined;
   }
 
   async markPunishmentComplete(id: string): Promise<Punishment | undefined> {
