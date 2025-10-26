@@ -13,6 +13,7 @@ import Punishments from "./pages/punishments";
 import Family from "./pages/family";
 import History from "./pages/history";
 import Login from "./pages/Login";
+import PushTest from "./pages/push-test";
 import Header from "./components/header";
 import Navigation from "./components/navigation";
 import { subscribeToPushNotifications, isPushNotificationSupported } from "./lib/pushNotifications";
@@ -71,6 +72,9 @@ function Router() {
       <Route path="/history">
         {() => <ProtectedRoute component={History} />}
       </Route>
+      <Route path="/push-test">
+        {() => <ProtectedRoute component={PushTest} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -100,12 +104,23 @@ function AppContent() {
 
   // Subscribe to push notifications when user logs in
   useEffect(() => {
-    if (user && isPushNotificationSupported()) {
-      // Delay subscription slightly to avoid blocking UI
-      const timer = setTimeout(() => {
-        subscribeToPushNotifications().catch(console.error);
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (user) {
+      const pushSupported = isPushNotificationSupported();
+      console.log('Push notification support check:', pushSupported);
+      console.log('ServiceWorker:', 'serviceWorker' in navigator);
+      console.log('PushManager:', 'PushManager' in window);
+      console.log('Notification:', 'Notification' in window);
+      
+      if (pushSupported) {
+        // Delay subscription slightly to avoid blocking UI
+        const timer = setTimeout(() => {
+          console.log('Attempting to subscribe to push notifications...');
+          subscribeToPushNotifications().catch(console.error);
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else {
+        console.log('Push notifications not supported on this browser');
+      }
     }
   }, [user]);
 
