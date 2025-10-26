@@ -157,30 +157,32 @@ export default function Punishments() {
                 {incompletePunishments.map((punishment) => (
                   <div
                     key={punishment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
                     data-testid={`punishment-${punishment.id}`}
                   >
-                    <div className="flex items-center space-x-4 flex-1">
-                      <Checkbox
-                        checked={false}
-                        onCheckedChange={() => markCompleteMutation.mutate(punishment.id)}
-                        disabled={markCompleteMutation.isPending}
-                        data-testid={`checkbox-complete-${punishment.id}`}
-                      />
-                      <Badge variant="default" className="text-lg px-3 py-1 flex-shrink-0">
-                        {punishment.number}
-                      </Badge>
+                    <div className="flex flex-col gap-3 flex-1 min-w-0">
+                      <div className="flex items-center space-x-4">
+                        <Checkbox
+                          checked={false}
+                          onCheckedChange={() => markCompleteMutation.mutate(punishment.id)}
+                          disabled={markCompleteMutation.isPending}
+                          data-testid={`checkbox-complete-${punishment.id}`}
+                        />
+                        <Badge variant="default" className="text-lg px-3 py-1 flex-shrink-0">
+                          {punishment.number}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground flex-shrink-0">
+                          {new Date(punishment.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
                       <Input
                         type="text"
                         placeholder="Add note..."
                         defaultValue={punishment.text || ""}
                         onBlur={(e) => updateTextMutation.mutate({ id: punishment.id, text: e.target.value })}
-                        className="flex-1"
+                        className="w-full text-base py-2 px-3"
                         data-testid={`input-text-${punishment.id}`}
                       />
-                      <span className="text-sm text-muted-foreground flex-shrink-0">
-                        {new Date(punishment.createdAt).toLocaleDateString()}
-                      </span>
                     </div>
                     <Button
                       variant="ghost"
@@ -188,6 +190,7 @@ export default function Punishments() {
                       onClick={() => deletePunishmentMutation.mutate(punishment.id)}
                       disabled={deletePunishmentMutation.isPending}
                       data-testid={`button-delete-${punishment.id}`}
+                      className="flex-shrink-0"
                     >
                       <Trash2 size={18} className="text-destructive" />
                     </Button>
@@ -211,22 +214,24 @@ export default function Punishments() {
                 {completedPunishments.map((punishment) => (
                   <div
                     key={punishment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-muted/30 opacity-60 gap-4"
+                    className="flex items-start justify-between p-4 border rounded-lg bg-muted/30 opacity-60 gap-4"
                     data-testid={`punishment-completed-${punishment.id}`}
                   >
-                    <div className="flex items-center space-x-4 flex-1">
-                      <Check size={20} className="text-green-500 flex-shrink-0" />
-                      <Badge variant="secondary" className="text-lg px-3 py-1 flex-shrink-0">
-                        {punishment.number}
-                      </Badge>
-                      {punishment.text && (
-                        <span className="text-sm text-muted-foreground line-through flex-1">
-                          {punishment.text}
+                    <div className="flex flex-col gap-3 flex-1 min-w-0">
+                      <div className="flex items-center space-x-4">
+                        <Check size={20} className="text-green-500 flex-shrink-0" />
+                        <Badge variant="secondary" className="text-lg px-3 py-1 flex-shrink-0">
+                          {punishment.number}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground flex-shrink-0">
+                          Completed {punishment.completedAt ? new Date(punishment.completedAt).toLocaleDateString() : ''}
                         </span>
+                      </div>
+                      {punishment.text && (
+                        <div className="text-base text-muted-foreground line-through pl-1">
+                          {punishment.text}
+                        </div>
                       )}
-                      <span className="text-sm text-muted-foreground flex-shrink-0">
-                        Completed {punishment.completedAt ? new Date(punishment.completedAt).toLocaleDateString() : ''}
-                      </span>
                     </div>
                     <Button
                       variant="ghost"
@@ -234,6 +239,7 @@ export default function Punishments() {
                       onClick={() => deletePunishmentMutation.mutate(punishment.id)}
                       disabled={deletePunishmentMutation.isPending}
                       data-testid={`button-delete-completed-${punishment.id}`}
+                      className="flex-shrink-0"
                     >
                       <Trash2 size={18} className="text-destructive" />
                     </Button>
