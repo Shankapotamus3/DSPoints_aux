@@ -172,7 +172,7 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async completeChore(id: string): Promise<Chore | undefined> {
+  async completeChore(id: string, completionDate: Date = new Date()): Promise<Chore | undefined> {
     const existingChore = await this.getChore(id);
     if (!existingChore) return undefined;
     
@@ -183,7 +183,7 @@ export class DatabaseStorage implements IStorage {
         .update(chores)
         .set({ 
           isCompleted: false,  // Reset to incomplete for next cycle
-          completedAt: new Date(), // Track when it was completed
+          completedAt: completionDate, // Track when it was completed
           nextDueDate: nextDue,
           status: 'completed' // Set to completed status for approval workflow
         })
@@ -196,7 +196,7 @@ export class DatabaseStorage implements IStorage {
         .update(chores)
         .set({ 
           isCompleted: false, // Keep false until approved
-          completedAt: new Date(),
+          completedAt: completionDate,
           status: 'completed' // Set to completed status for approval workflow
         })
         .where(eq(chores.id, id))
