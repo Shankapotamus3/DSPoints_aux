@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Users, UserCircle, Crown, Edit, Shield, ShieldOff } from "lucide-react";
+import { Plus, Users, UserCircle, Crown, Edit, Shield, ShieldOff, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AddFamilyMemberModal from "@/components/add-family-member-modal";
 import EditProfileModal from "@/components/edit-profile-modal";
+import AdjustPointsDialog from "@/components/adjust-points-dialog";
 import type { User } from "@shared/schema";
 
 export default function Family() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [adjustingPointsUser, setAdjustingPointsUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const { data: users = [], isLoading } = useQuery<User[]>({
@@ -160,6 +162,17 @@ export default function Family() {
                       <Badge variant="secondary" data-testid={`text-points-${user.id}`}>
                         {user.points.toLocaleString()} points
                       </Badge>
+                      {isCurrentUserAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => setAdjustingPointsUser(user)}
+                          data-testid={`button-adjust-points-${user.id}`}
+                        >
+                          <Coins className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                     
                     <div className="flex items-center justify-center space-x-1 text-xs text-muted-foreground">
@@ -219,6 +232,14 @@ export default function Family() {
           open={!!editingUser}
           onClose={() => setEditingUser(null)}
           user={editingUser}
+        />
+      )}
+
+      {adjustingPointsUser && (
+        <AdjustPointsDialog
+          open={!!adjustingPointsUser}
+          onClose={() => setAdjustingPointsUser(null)}
+          user={adjustingPointsUser}
         />
       )}
     </>
