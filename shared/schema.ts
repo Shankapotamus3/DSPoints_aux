@@ -185,6 +185,18 @@ export const pointAdjustmentSchema = z.object({
   reason: z.string().min(1, 'Reason is required'),
 });
 
+export const choreCompletionSchema = z.object({
+  completedAt: z.string().datetime().optional().refine((date) => {
+    if (!date) return true;
+    const completionDate = new Date(date);
+    const now = new Date();
+    // Allow completion dates up to current time, but not in the future
+    return completionDate <= now;
+  }, {
+    message: 'Completion date cannot be in the future'
+  }),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertChore = z.infer<typeof insertChoreSchema>;
@@ -203,6 +215,7 @@ export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
 export type PointAdjustment = z.infer<typeof pointAdjustmentSchema>;
+export type ChoreCompletion = z.infer<typeof choreCompletionSchema>;
 
 // Enum-like types for better type safety
 export type ChoreStatus = 'pending' | 'completed' | 'approved' | 'rejected';
