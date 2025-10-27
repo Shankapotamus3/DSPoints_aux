@@ -524,6 +524,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chore routes
   app.get("/api/chores", async (req, res) => {
     try {
+      // Reset recurring chores that are due again
+      await storage.resetRecurringChores();
+      
       const chores = await storage.getChores();
       res.json(chores);
     } catch (error) {

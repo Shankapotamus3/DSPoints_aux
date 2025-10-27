@@ -472,6 +472,12 @@ export class DatabaseStorage implements IStorage {
       .update(chores)
       .set({ 
         isCompleted: false,
+        status: 'pending',
+        completedAt: null,
+        completedById: null,
+        approvedAt: null,
+        approvedById: null,
+        approvalComment: null,
         nextDueDate: sql`CASE 
           WHEN recurring_type = 'daily' THEN ${now} + interval '1 day'
           WHEN recurring_type = 'weekly' THEN ${now} + interval '1 week'
