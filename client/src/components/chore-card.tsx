@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Check, Clock, CheckCircle, XCircle, HelpCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import CompleteChoreDialog from "@/components/complete-chore-dialog";
 import type { Chore, User, ChoreStatus } from "@shared/schema";
 
 interface ChoreCardProps {
@@ -30,6 +32,7 @@ export default function ChoreCard({
 }: ChoreCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -72,31 +75,6 @@ export default function ChoreCard({
     }
   };
 
-  const completeMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/chores/${chore.id}/complete`);
-      return response.json();
-    },
-    onSuccess: async () => {
-      // Invalidate and refetch data to update UI throughout the app
-      queryClient.invalidateQueries({ queryKey: ["/api/chores"] });
-      
-      // Trigger completion celebration (not points celebration)
-      onComplete?.();
-      
-      toast({
-        title: "Chore Submitted! 📝",
-        description: "Your chore has been submitted for approval.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to complete chore",
-        variant: "destructive",
-      });
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -216,8 +194,7 @@ export default function ChoreCard({
                 </Button>
               )}
               <Button 
-                onClick={() => completeMutation.mutate()}
-                disabled={completeMutation.isPending}
+                onClick={() => setShowCompleteDialog(true)}
                 className="celebration-bounce"
                 data-testid={`button-complete-chore-${chore.id}`}
               >
@@ -287,6 +264,15 @@ export default function ChoreCard({
           )}
         </div>
       </CardContent>
+      
+      <CompleteChoreDialog
+        open={showCompleteDialog}
+        onClose={() => {
+          setShowCompleteDialog(false);
+          onComplete?.(); // Trigger celebration when dialog closes after successful completion
+        }}
+        chore={chore}
+      />
     </Card>
   );
 }
