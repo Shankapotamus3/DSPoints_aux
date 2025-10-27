@@ -41,15 +41,16 @@ export default function AdjustPointsDialog({ open, onClose, user }: AdjustPoints
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      const numAmount = parseInt(amount);
       toast({
         title: "Points Adjusted",
-        description: `Successfully ${isAdding ? 'added' : 'removed'} ${amount} points.`,
+        description: `Successfully ${isAdding ? 'added' : 'removed'} ${numAmount.toLocaleString()} points.`,
       });
       handleClose();
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "Cannot Adjust Points",
         description: error.message || "Failed to adjust points",
         variant: "destructive",
       });
@@ -154,7 +155,11 @@ export default function AdjustPointsDialog({ open, onClose, user }: AdjustPoints
 
           {/* Preview */}
           {amount && parseInt(amount) > 0 && (
-            <div className="p-3 bg-muted rounded-lg">
+            <div className={`p-3 rounded-lg ${
+              !isAdding && user.points < parseInt(amount)
+                ? 'bg-destructive/10 border border-destructive/20'
+                : 'bg-muted'
+            }`}>
               <p className="text-sm text-muted-foreground">Preview:</p>
               <p className="font-medium">
                 {user.points.toLocaleString()} points 
@@ -163,6 +168,11 @@ export default function AdjustPointsDialog({ open, onClose, user }: AdjustPoints
                 </span>
                 {' '}= <strong>{Math.max(0, user.points + (isAdding ? parseInt(amount) : -parseInt(amount))).toLocaleString()} points</strong>
               </p>
+              {!isAdding && user.points < parseInt(amount) && (
+                <p className="text-xs text-destructive mt-2">
+                  ⚠️ Cannot remove {parseInt(amount).toLocaleString()} points. User only has {user.points.toLocaleString()} points.
+                </p>
+              )}
             </div>
           )}
         </div>

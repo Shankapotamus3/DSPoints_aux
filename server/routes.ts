@@ -484,8 +484,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Calculate new points (ensure it doesn't go negative)
-      const newPoints = Math.max(0, targetUser.points + amount);
+      // Calculate new points
+      const newPoints = targetUser.points + amount;
+      
+      // Prevent negative balances
+      if (newPoints < 0) {
+        return res.status(400).json({ 
+          message: `Cannot remove ${Math.abs(amount)} points. User only has ${targetUser.points} points available.`,
+          currentPoints: targetUser.points,
+          requestedChange: amount
+        });
+      }
       
       // Update user points
       const user = await storage.updateUserPoints(id, newPoints);
@@ -493,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to update user points" });
       }
 
-      // Create transaction record
+      // Create transaction record for audit trail
       await storage.createTransaction({
         type: amount > 0 ? "earn" : "spend",
         amount: Math.abs(amount),
