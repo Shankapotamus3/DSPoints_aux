@@ -574,15 +574,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/chores/:id/complete", async (req, res) => {
+  app.post("/api/chores/:id/complete", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { completedAt } = choreCompletionSchema.parse(req.body);
       
+      const currentUserId = getCurrentUserId(req);
+      if (!currentUserId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
       // Use provided date or default to now
       const completionDate = completedAt ? new Date(completedAt) : new Date();
       
-      const chore = await storage.completeChore(id, completionDate);
+      const chore = await storage.completeChore(id, currentUserId, completionDate);
       if (!chore) {
         return res.status(404).json({ message: "Chore not found or already completed" });
       }
@@ -591,11 +596,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allUsers = await storage.getUsers();
       const admins = allUsers.filter(user => user.isAdmin);
       
+      const completer = await storage.getUser(currentUserId);
+      const completerName = completer?.displayName || completer?.username || "Someone";
+      
       for (const admin of admins) {
         await sendNotification(
           admin.id,
           "Chore Completed - Pending Approval",
-          `${chore.name} has been completed and needs your approval`,
+          `${chore.name} has been completed by ${completerName} and needs your approval`,
           "chore_completed",
           chore.id
         );

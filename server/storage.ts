@@ -43,7 +43,7 @@ export interface IStorage {
   createChore(chore: InsertChore): Promise<Chore>;
   updateChore(id: string, updates: Partial<Chore>): Promise<Chore | undefined>;
   deleteChore(id: string): Promise<boolean>;
-  completeChore(id: string): Promise<Chore | undefined>;
+  completeChore(id: string, completedById: string, completionDate?: Date): Promise<Chore | undefined>;
   approveChore(id: string, approvedById: string, comment?: string): Promise<Chore | undefined>;
   rejectChore(id: string, approvedById: string, comment?: string): Promise<Chore | undefined>;
   getPendingApprovalChores(): Promise<Chore[]>;
@@ -172,7 +172,7 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async completeChore(id: string, completionDate: Date = new Date()): Promise<Chore | undefined> {
+  async completeChore(id: string, completedById: string, completionDate: Date = new Date()): Promise<Chore | undefined> {
     const existingChore = await this.getChore(id);
     if (!existingChore) return undefined;
     
@@ -184,6 +184,7 @@ export class DatabaseStorage implements IStorage {
         .set({ 
           isCompleted: false,  // Reset to incomplete for next cycle
           completedAt: completionDate, // Track when it was completed
+          completedById: completedById, // Track who completed it
           nextDueDate: nextDue,
           status: 'completed', // Set to completed status for approval workflow
           approvedAt: null, // Clear previous approval
@@ -200,6 +201,7 @@ export class DatabaseStorage implements IStorage {
         .set({ 
           isCompleted: false, // Keep false until approved
           completedAt: completionDate,
+          completedById: completedById, // Track who completed it
           status: 'completed', // Set to completed status for approval workflow
           approvedAt: null, // Clear previous approval
           approvedById: null,
