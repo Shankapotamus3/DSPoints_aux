@@ -35,7 +35,7 @@ export default function Dashboard() {
     queryKey: ["/api/user"],
   }) as { data: { points: number } | undefined };
 
-  const pendingChores = chores.filter(chore => !chore.isCompleted).slice(0, 3);
+  const pendingChores = chores.filter(chore => chore.status === 'pending').slice(0, 3);
   const availableRewards = rewards.filter(reward => reward.isAvailable && reward.cost <= (user?.points ?? 0)).slice(0, 3);
   const unavailableRewards = rewards.filter(reward => reward.isAvailable && reward.cost > (user?.points ?? 0)).slice(0, 1);
   const recentTransactions = transactions.slice(0, 3);
