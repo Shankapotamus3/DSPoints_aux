@@ -178,6 +178,13 @@ export const choreApprovalSchema = z.object({
   comment: z.string().optional(),
 });
 
+export const pointAdjustmentSchema = z.object({
+  amount: z.number().int().refine((val) => val !== 0, {
+    message: 'Amount cannot be zero'
+  }),
+  reason: z.string().min(1, 'Reason is required'),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertChore = z.infer<typeof insertChoreSchema>;
@@ -195,6 +202,7 @@ export type Punishment = typeof punishments.$inferSelect;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
+export type PointAdjustment = z.infer<typeof pointAdjustmentSchema>;
 
 // Enum-like types for better type safety
 export type ChoreStatus = 'pending' | 'completed' | 'approved' | 'rejected';
