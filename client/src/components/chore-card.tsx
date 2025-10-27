@@ -169,10 +169,10 @@ export default function ChoreCard({
             )}
           </div>
           
-          {/* Regular actions for pending chores */}
-          {showActions && chore.status === 'pending' && (
+          {/* Regular actions for pending, approved, and rejected chores */}
+          {showActions && (chore.status === 'pending' || chore.status === 'approved' || chore.status === 'rejected') && (
             <div className="flex items-center space-x-2">
-              {onEdit && (
+              {onEdit && chore.status === 'pending' && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -182,7 +182,7 @@ export default function ChoreCard({
                   Edit
                 </Button>
               )}
-              {onDelete && (
+              {onDelete && chore.status === 'pending' && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -199,7 +199,7 @@ export default function ChoreCard({
                 data-testid={`button-complete-chore-${chore.id}`}
               >
                 <Check className="mr-2" size={16} />
-                Complete
+                Complete{(chore.status === 'approved' || chore.status === 'rejected') ? ' Again' : ''}
               </Button>
             </div>
           )}
