@@ -19,6 +19,18 @@ declare module 'express-session' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for Railway and other platforms
+  // Register this FIRST so it works even if other initialization fails
+  app.get("/health", (req, res) => {
+    res.status(200).json({ 
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  });
+
+  console.log("🏥 Health endpoint registered at /health");
+
   // Helper function to hash PIN/password using bcrypt (salted, secure)
   async function hashPassword(password: string): Promise<string> {
     const saltRounds = 10;
@@ -72,25 +84,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("   ⚠️  Please change the PIN after first login for security!");
       }
     } catch (error) {
-      console.error("Failed to initialize default admin:", error);
+      console.error("⚠️  Failed to initialize default admin (will retry later):", error);
     }
   }
 
-  // Initialize default admin on startup
-  await initializeDefaultAdmin();
+  // Initialize default admin on startup (non-blocking)
+  initializeDefaultAdmin().catch((error) => {
+    console.error("⚠️  Default admin initialization error:", error);
+  });
 
   // Setup session store - use PostgreSQL if available, otherwise fall back to memory store
   let sessionStore;
   
   if (process.env.DATABASE_URL) {
-    const PgSession = connectPgSimple(session);
-    sessionStore = new PgSession({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
-      tableName: "session",
-      createTableIfMissing: true,
-    });
+    try {
+      const PgSession = connectPgSimple(session);
+      sessionStore = new PgSession({
+        conObject: {
+          connectionString: process.env.DATABASE_URL,
+        },
+        tableName: "session",
+        createTableIfMissing: true,
+      });
+      console.log("✅ PostgreSQL session store configured");
+    } catch (error) {
+      console.error("⚠️  Failed to configure PostgreSQL session store, using memory store:", error);
+    }
+  } else {
+    console.log("ℹ️  Using memory session store (DATABASE_URL not set)");
   }
   
   // Trust proxy for production deployments
@@ -1381,15 +1402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Health check endpoint for Railway and other platforms
-  app.get("/health", (req, res) => {
-    res.status(200).json({ 
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
-  });
-
   const httpServer = createServer(app);
+  console.log("🚀 HTTP server created successfully");
   return httpServer;
 }

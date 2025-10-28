@@ -37,40 +37,64 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    console.log("🔧 Starting server initialization...");
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+    
+    const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
+      res.status(status).json({ message });
+      throw err;
+    });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      console.log("🔨 Setting up Vite dev server...");
+      await setupVite(app, server);
+    } else {
+      console.log("📦 Serving static files...");
+      serveStatic(app);
+    }
+
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    
+    // Listen on both IPv4 and IPv6 for compatibility with different platforms
+    // Railway v2 requires IPv6 (::) for healthchecks
+    const host = process.env.RAILWAY_ENVIRONMENT ? "::" : "0.0.0.0";
+    
+    console.log(`🌐 Starting server on ${host}:${port}...`);
+    
+    server.listen({
+      port,
+      host,
+      reusePort: true,
+    }, () => {
+      log(`✅ Server running on port ${port} (host: ${host})`);
+      console.log(`🏥 Health check available at http://localhost:${port}/health`);
+    });
+
+    // Handle server errors
+    server.on('error', (error: any) => {
+      console.error("❌ Server error:", error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use`);
+        process.exit(1);
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  
-  // Listen on both IPv4 and IPv6 for compatibility with different platforms
-  // Railway v2 requires IPv6 (::) for healthchecks
-  const host = process.env.RAILWAY_ENVIRONMENT ? "::" : "0.0.0.0";
-  
-  server.listen({
-    port,
-    host,
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port} (host: ${host})`);
-  });
 })();
