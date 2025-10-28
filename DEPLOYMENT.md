@@ -4,7 +4,7 @@ This guide will help you deploy your ChoreRewards app to a platform that fully s
 
 ## Why Deploy Outside Replit?
 
-Push notifications require specific browser APIs that aren't available in Replit's webview or published apps. By deploying to platforms like Railway or Vercel, your app will have access to:
+Push notifications require specific browser APIs that aren't available in Replit's webview or published apps. By deploying to platforms like Railway or Render, your app will have access to:
 - Full Notification API support
 - Service Worker functionality on all browsers
 - HTTPS by default (required for PWA features)
@@ -12,7 +12,13 @@ Push notifications require specific browser APIs that aren't available in Replit
 
 ---
 
-## Option 1: Deploy to Railway (Recommended for Full-Stack Apps)
+## Recommended Platform: Railway or Render
+
+**Important:** This app uses a traditional Express.js server with WebSockets, sessions, and long-running connections. It requires a platform that supports persistent Node.js processes, not serverless functions. Railway and Render are perfect for this type of application.
+
+---
+
+## Option 1: Deploy to Railway (Highly Recommended)
 
 **Railway** is perfect for your app because it handles both the Node.js backend and PostgreSQL database with minimal configuration.
 
@@ -84,57 +90,61 @@ railway run npm run db:push
 
 ---
 
-## Option 2: Deploy to Vercel (Alternative)
+## Option 2: Deploy to Render (Great Alternative)
 
-**Vercel** is great for frontend-heavy apps and supports full-stack Node.js applications.
+**Render** is another excellent platform for full-stack apps with PostgreSQL.
 
 ### Step 1: Push to GitHub
 
 (Same as Railway Step 1 above)
 
-### Step 2: Set Up Vercel
+### Step 2: Set Up Render
 
-1. Go to [vercel.com](https://vercel.com)
+1. Go to [render.com](https://render.com)
 2. Sign up or log in with your GitHub account
-3. Click **"Add New..."** → **"Project"**
-4. Import your ChoreRewards repository
-5. Configure your project:
-   - **Framework Preset**: Other
+3. Click **"New +"** → **"Web Service"**
+4. Connect your GitHub repository and select your ChoreRewards repo
+5. Configure your service:
+   - **Name**: chorerewards (or your preferred name)
    - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-   - **Install Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free (or your preferred tier)
 
 ### Step 3: Add PostgreSQL Database
 
-1. In your Vercel project, go to the **"Storage"** tab
-2. Click **"Create Database"** → **"Postgres"**
-3. Follow the prompts to create a Neon PostgreSQL database
-4. Vercel will automatically set the `DATABASE_URL` environment variable
+1. From the Render dashboard, click **"New +"** → **"PostgreSQL"**
+2. Give your database a name (e.g., "chorerewards-db")
+3. Select the free tier or your preferred plan
+4. Click **"Create Database"**
+5. Once created, go back to your web service
+6. In the **"Environment"** tab, Render will show the internal database URL
+7. Copy the **"Internal Database URL"** and add it as `DATABASE_URL` in your web service environment variables
 
 ### Step 4: Configure Environment Variables
 
-1. Go to your project **"Settings"** → **"Environment Variables"**
-2. Add the same variables as Railway (see Railway Step 4)
+1. In your web service, go to the **"Environment"** tab
+2. Add these environment variables:
+
+```
+NODE_ENV=production
+DATABASE_URL=(paste the internal database URL from Step 3)
+SESSION_SECRET=your-random-secret-here
+VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
+```
 
 ### Step 5: Deploy!
 
-1. Click **"Deploy"** to trigger a deployment
-2. Vercel will build and deploy your app
-3. Once complete, click the **"Visit"** button to see your live app
+1. Click **"Manual Deploy"** → **"Deploy latest commit"** to trigger deployment
+2. Watch the deployment logs to monitor progress
+3. Once complete, click the URL at the top to open your live app
 
----
+### Step 6: Run Database Migrations
 
-## Option 3: Deploy to Render (Another Great Option)
-
-1. Go to [render.com](https://render.com)
-2. Sign up and create a **"New Web Service"**
-3. Connect your GitHub repository
-4. Configure:
-   - **Build Command**: `npm run build`
-   - **Start Command**: `npm start`
-5. Add a **PostgreSQL database** from the Render dashboard
-6. Set environment variables (same as above)
-7. Deploy!
+1. In Render, go to your web service
+2. Click the **"Shell"** tab to open a terminal
+3. Run: `npm run db:push`
+4. Or use Render's Deploy Hook feature to run migrations automatically
 
 ---
 
@@ -192,7 +202,6 @@ After making changes in Replit:
 ## Need Help?
 
 - **Railway**: [docs.railway.app](https://docs.railway.app)
-- **Vercel**: [vercel.com/docs](https://vercel.com/docs)
 - **Render**: [render.com/docs](https://render.com/docs)
 
 Your app is now production-ready with full push notification support! 🎉
