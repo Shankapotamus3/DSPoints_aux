@@ -67,6 +67,7 @@ export function ObjectUploader({
         allowedFileTypes: ['image/*'], // Only allow images for avatars
       },
       autoProceed: false,
+      debug: true, // Enable debug mode to see what's happening
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
@@ -102,6 +103,9 @@ export function ObjectUploader({
         open={showModal}
         onRequestClose={() => setShowModal(false)}
         proudlyDisplayPoweredByUppy={false}
+        note="Select an image file, then click Upload"
+        showProgressDetails={true}
+        showRemoveButtonAfterComplete={true}
       />
     </div>
   );
