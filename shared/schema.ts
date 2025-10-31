@@ -107,10 +107,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   avatarType: z.enum(['emoji', 'image']).optional(),
   avatarUrl: z.string().nullish().refine((url) => {
     if (!url) return true; // Allow empty/undefined/null
-    // Must be a valid URL that starts with /objects/ (internal path) or https://storage.googleapis.com/
-    return url.startsWith('/objects/') || url.startsWith('https://storage.googleapis.com/');
+    // Accept both Cloudinary URLs and Replit object storage URLs
+    return url.startsWith('/objects/') || 
+           url.startsWith('https://storage.googleapis.com/') ||
+           url.startsWith('https://res.cloudinary.com/');
   }, {
-    message: 'Avatar URL must be a valid object storage URL (must start with /objects/ or https://storage.googleapis.com/)'
+    message: 'Avatar URL must be a valid Cloudinary or object storage URL'
   }),
   pin: z.string().nullish().refine((pin) => {
     if (!pin) return true; // PIN is optional
