@@ -97,7 +97,7 @@ export function ObjectUploader({
         console.log("☁️ Configuring Cloudinary upload");
         const { cloudinaryParams } = params as any;
         uppyInstance.use(XHRUpload, {
-          endpoint: params.url,
+          endpoint: params.uploadURL,
           method: 'POST',
           formData: true, // Use FormData for Cloudinary
           fieldName: 'file',
@@ -114,7 +114,7 @@ export function ObjectUploader({
         // Replit object storage - use XHRUpload for simpler CORS handling
         console.log("📦 Configuring Replit storage upload");
         uppyInstance.use(XHRUpload, {
-          endpoint: params.url,
+          endpoint: params.uploadURL,
           method: 'PUT',
           fieldName: 'file',
           formData: false, // Don't wrap in FormData, send raw file
@@ -135,9 +135,9 @@ export function ObjectUploader({
           const cloudinaryUrl = (response.body as any).secure_url;
           console.log("☁️ Cloudinary URL:", cloudinaryUrl);
           file!.uploadURL = cloudinaryUrl;
-        } else if (uploadParams?.url) {
+        } else if (uploadParams?.uploadURL) {
           // For Replit storage, extract clean URL from the upload URL
-          const urlObj = new URL(uploadParams.url);
+          const urlObj = new URL(uploadParams.uploadURL);
           const cleanUrl = urlObj.origin + urlObj.pathname;
           file!.uploadURL = cleanUrl;
           console.log("📦 Replit storage URL:", cleanUrl);
