@@ -1046,29 +1046,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const objectStorageService = new ObjectStorageService();
+      // Check if this is a Cloudinary URL
+      const isCloudinaryUrl = avatarUrl.includes('cloudinary.com');
       
-      // SECURITY: Validate that the avatar URL belongs to this user
-      const isValidOwnership = objectStorageService.validateAvatarUrlOwnership(avatarUrl, id);
-      if (!isValidOwnership) {
-        return res.status(403).json({ 
-          message: "Avatar URL does not belong to this user. Upload URLs must be obtained through the proper avatar-upload endpoint." 
-        });
-      }
+      let finalAvatarUrl = avatarUrl;
       
-      // Set ACL policy to make avatar public (family members can view each other's avatars)
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
-        avatarUrl,
-        {
-          owner: id, // User owns their avatar
-          visibility: "public", // Public so all family members can view
+      if (isCloudinaryUrl) {
+        // Cloudinary URLs are publicly accessible and managed by Cloudinary
+        // No ownership validation or ACL policy needed
+        console.log(`☁️ Saving Cloudinary avatar URL for user ${id}`);
+      } else {
+        // Replit object storage - validate ownership and set ACL
+        const objectStorageService = new ObjectStorageService();
+        
+        // SECURITY: Validate that the avatar URL belongs to this user
+        const isValidOwnership = objectStorageService.validateAvatarUrlOwnership(avatarUrl, id);
+        if (!isValidOwnership) {
+          return res.status(403).json({ 
+            message: "Avatar URL does not belong to this user. Upload URLs must be obtained through the proper avatar-upload endpoint." 
+          });
         }
-      );
+        
+        // Set ACL policy to make avatar public (family members can view each other's avatars)
+        const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+          avatarUrl,
+          {
+            owner: id, // User owns their avatar
+            visibility: "public", // Public so all family members can view
+          }
+        );
+        finalAvatarUrl = objectPath;
+        console.log(`📦 Saving Replit storage avatar URL for user ${id}`);
+      }
 
       // Update user with new avatar settings
       const updatedUser = await storage.updateUser(id, {
         avatarType: "image",
-        avatarUrl: objectPath,
+        avatarUrl: finalAvatarUrl,
       });
 
       if (!updatedUser) {
