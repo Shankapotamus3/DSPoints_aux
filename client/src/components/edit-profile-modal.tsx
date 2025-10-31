@@ -198,9 +198,13 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
                       onGetUploadParameters={async () => {
                         const response = await apiRequest("POST", `/api/users/${user.id}/avatar-upload`);
                         const data = await response.json();
+                        
+                        // Return the full data (includes cloudinaryParams if using Cloudinary)
                         return {
                           method: "PUT" as const,
                           url: data.uploadURL,
+                          cloudinaryParams: data.cloudinaryParams,
+                          storageType: data.storageType,
                         };
                       }}
                       onComplete={(result) => {

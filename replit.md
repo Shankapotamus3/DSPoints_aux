@@ -65,6 +65,43 @@ Preferred communication style: Simple, everyday language.
 - **Error Handling**: Runtime error overlay in development with proper error boundaries
 - **Build Process**: Separate client and server builds with optimized production bundles
 
+# Image Upload System
+
+## Storage Backend Selection
+The app automatically detects the deployment environment and selects the appropriate storage backend:
+
+- **Replit Environment**: Uses Replit's built-in object storage (Google Cloud Storage with automatic authentication)
+- **Railway/Other Platforms**: Uses Cloudinary when configured, falls back gracefully with error messages if not configured
+
+## Environment Detection Logic
+- Checks for Cloudinary credentials (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
+- If Cloudinary is configured OR if not running on Replit → uses Cloudinary
+- If Replit object storage is available → uses Replit storage
+- Provides clear error messages if neither is configured
+
+## Upload Security
+- **Cloudinary**: Server-generated signed uploads with timestamp-based signatures
+- **Replit Storage**: Server-generated signed URLs for direct uploads
+- No client-side API key exposure in either case
+
+## Frontend Upload Flow
+1. Client requests upload parameters from backend
+2. Backend returns different data based on storage type:
+   - Cloudinary: POST endpoint with signature and parameters
+   - Replit: PUT endpoint with signed URL
+3. ObjectUploader component handles both flows transparently
+4. Upload completion extracts the image URL from provider-specific response
+
+## Supported Upload Types
+- **Avatar Images**: User profile pictures (5MB limit)
+- **Message Images**: Image attachments in messages (10MB limit)
+
+## Cloudinary Configuration
+Required for Railway deployment (documented in CLOUDINARY_SETUP.md):
+- Free tier: 25GB storage, 25GB bandwidth/month
+- Automatic image optimization and WebP conversion
+- Folder organization: `avatars/{userId}/` and `messages/`
+
 # External Dependencies
 
 ## Core Framework Dependencies
@@ -90,3 +127,6 @@ Preferred communication style: Simple, everyday language.
 - **Replit-specific plugins**: Development banner, cartographer, and runtime error modal for Replit environment
 - **connect-pg-simple**: PostgreSQL session store for Express sessions
 - **date-fns**: Modern date utility library for time formatting and manipulation
+- **Cloudinary**: Cloud image storage and optimization service (Railway deployment)
+  - **cloudinary**: Official Node.js SDK for server-side operations
+  - **multer**: Middleware for handling multipart/form-data uploads
