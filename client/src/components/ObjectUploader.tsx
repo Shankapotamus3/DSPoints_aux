@@ -129,21 +129,31 @@ export function ObjectUploader({
         console.log("🚀 Upload started");
       })
       .on("upload-success", (file, response) => {
-        console.log("✅ Upload success:", file?.name, response);
+        console.log("✅ Upload success:", file?.name);
+        console.log("Full response object:", response);
         console.log("Response body:", response?.body);
+        console.log("Response body type:", typeof response?.body);
+        console.log("Upload params:", uploadParams);
         
         // Cloudinary returns the URL in response.body.secure_url
-        if (response && response.body && (response.body as any).secure_url) {
-          const cloudinaryUrl = (response.body as any).secure_url;
-          console.log("☁️ Cloudinary URL:", cloudinaryUrl);
+        // Check both response.body and response directly for secure_url
+        let cloudinaryUrl = (response?.body as any)?.secure_url || (response as any)?.secure_url;
+        
+        if (cloudinaryUrl && typeof cloudinaryUrl === 'string') {
+          console.log("☁️ Cloudinary URL found:", cloudinaryUrl);
           file!.uploadURL = cloudinaryUrl;
-        } else if (uploadParams?.uploadURL) {
+        } else if (uploadParams?.storageType === 'replit' && uploadParams?.uploadURL) {
           // For Replit storage, extract clean URL from the upload URL
           const urlObj = new URL(uploadParams.uploadURL);
           const cleanUrl = urlObj.origin + urlObj.pathname;
           file!.uploadURL = cleanUrl;
           console.log("📦 Replit storage URL:", cleanUrl);
+        } else {
+          console.error("❌ Could not extract URL from response");
+          console.error("Response structure:", JSON.stringify(response, null, 2));
         }
+        
+        console.log("Final file.uploadURL:", file?.uploadURL);
       })
       .on("upload-error", (file, error) => {
         console.error("❌ Upload error:", file?.name, error);
