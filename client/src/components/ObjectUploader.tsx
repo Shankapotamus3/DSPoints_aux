@@ -79,11 +79,14 @@ export function ObjectUploader({
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: async (file) => {
+          console.log("📡 Getting upload parameters for:", file.name);
           const params = await onGetUploadParameters();
+          console.log("📥 Received params:", params);
           
           // Check if this is a Cloudinary upload (has cloudinaryParams)
           if ('cloudinaryParams' in params && params.cloudinaryParams) {
             const { cloudinaryParams } = params as any;
+            console.log("☁️ Using Cloudinary upload");
             return {
               method: 'POST',
               url: params.url,
@@ -98,7 +101,7 @@ export function ObjectUploader({
           }
           
           // Regular upload (Replit object storage) - store the signed URL
-          // We'll extract the clean URL after upload
+          console.log("📦 Using Replit object storage upload");
           file.meta.signedUploadURL = params.url;
           return params;
         },
@@ -108,17 +111,19 @@ export function ObjectUploader({
       })
       .on("upload-success", (file, response) => {
         console.log("✅ Upload success:", file?.name, response);
+        console.log("File object:", file);
         
         // Cloudinary returns the URL in response.body.secure_url
         if (response && response.body && response.body.secure_url) {
-          console.log("Cloudinary URL:", response.body.secure_url);
+          console.log("☁️ Cloudinary URL:", response.body.secure_url);
         } else if (file?.meta?.signedUploadURL) {
           // For Replit storage, extract clean URL from signed URL
           const signedUrl = file.meta.signedUploadURL as string;
+          console.log("📦 Signed URL:", signedUrl);
           const urlObj = new URL(signedUrl);
           const cleanUrl = urlObj.origin + urlObj.pathname;
           file.uploadURL = cleanUrl;
-          console.log("Replit storage URL:", cleanUrl);
+          console.log("📦 Clean Replit storage URL:", cleanUrl);
         }
       })
       .on("upload-error", (file, error) => {
@@ -128,8 +133,15 @@ export function ObjectUploader({
         console.error("❌ Uppy error:", error);
       })
       .on("complete", (result) => {
-        console.log("🏁 Upload complete:", result);
-        onComplete?.(result);
+        console.log("🏁 Upload complete, full result:", result);
+        console.log("🏁 Successful files:", result.successful);
+        console.log("🏁 Failed files:", result.failed);
+        if (onComplete) {
+          console.log("🏁 Calling onComplete callback");
+          onComplete(result);
+        } else {
+          console.log("⚠️ No onComplete callback provided");
+        }
         setShowModal(false); // Close modal after upload
       })
   );
