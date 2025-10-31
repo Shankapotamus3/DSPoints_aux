@@ -82,10 +82,12 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Only include PIN if it was entered
-    const updates = { ...formData };
+    const updates: any = { ...formData };
     if (!updates.pin) {
       delete updates.pin;
     }
+    console.log("🚀 Submitting profile update with data:", updates);
+    console.log("📊 avatarType:", updates.avatarType, "avatarUrl:", updates.avatarUrl);
     updateMutation.mutate(updates);
   };
 
