@@ -190,7 +190,9 @@ Once your app is deployed, test these features:
 ### Build Failures
 - Check deployment logs for specific error messages
 - Verify all dependencies are in `package.json` (not just devDependencies)
-- Ensure Node.js version is compatible (v18 or higher recommended)
+- **Important**: This app requires Node.js v20 or higher (uses `import.meta.dirname`)
+  - The `.nvmrc` and `.node-version` files ensure Railway uses Node.js 20
+  - If you see `ERR_INVALID_ARG_TYPE` errors, check that Node v20 is being used
 
 ### Environment Variables
 - Make sure all required secrets are set on the deployment platform
