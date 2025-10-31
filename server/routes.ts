@@ -1026,7 +1026,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { avatarUrl } = req.body;
 
+      console.log(`🖼️  Avatar update request for user ${id}`);
+      console.log(`📥 Received avatarUrl:`, avatarUrl);
+
       if (!avatarUrl) {
+        console.error(`❌ No avatarUrl provided`);
         return res.status(400).json({ message: "avatarUrl is required" });
       }
 
@@ -1034,6 +1038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         insertUserSchema.pick({ avatarUrl: true }).parse({ avatarUrl });
       } catch (validationError) {
+        console.error(`❌ Invalid avatarUrl format:`, validationError);
         return res.status(400).json({ 
           message: "Invalid avatar URL format",
           errors: validationError instanceof z.ZodError ? validationError.errors : []
@@ -1043,18 +1048,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verify user exists
       const user = await storage.getUser(id);
       if (!user) {
+        console.error(`❌ User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
 
       // Check if this is a Cloudinary URL
       const isCloudinaryUrl = avatarUrl.includes('cloudinary.com');
+      console.log(`🔍 Is Cloudinary URL: ${isCloudinaryUrl}`);
       
       let finalAvatarUrl = avatarUrl;
       
       if (isCloudinaryUrl) {
         // Cloudinary URLs are publicly accessible and managed by Cloudinary
         // No ownership validation or ACL policy needed
-        console.log(`☁️ Saving Cloudinary avatar URL for user ${id}`);
+        console.log(`☁️ Saving Cloudinary avatar URL for user ${id}: ${avatarUrl}`);
       } else {
         // Replit object storage - validate ownership and set ACL
         const objectStorageService = new ObjectStorageService();
@@ -1062,6 +1069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // SECURITY: Validate that the avatar URL belongs to this user
         const isValidOwnership = objectStorageService.validateAvatarUrlOwnership(avatarUrl, id);
         if (!isValidOwnership) {
+          console.error(`❌ Avatar ownership validation failed for user ${id}`);
           return res.status(403).json({ 
             message: "Avatar URL does not belong to this user. Upload URLs must be obtained through the proper avatar-upload endpoint." 
           });
@@ -1076,8 +1084,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         );
         finalAvatarUrl = objectPath;
-        console.log(`📦 Saving Replit storage avatar URL for user ${id}`);
+        console.log(`📦 Saving Replit storage avatar URL for user ${id}: ${finalAvatarUrl}`);
       }
+
+      console.log(`💾 Updating user with avatarType: "image", avatarUrl: ${finalAvatarUrl}`);
 
       // Update user with new avatar settings
       const updatedUser = await storage.updateUser(id, {
