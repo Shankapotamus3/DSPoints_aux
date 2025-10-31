@@ -102,6 +102,7 @@ export function ObjectUploader({
           formData: true, // Use FormData for Cloudinary
           fieldName: 'file',
           headers: {},
+          responseType: 'json', // Parse JSON response
           // Add Cloudinary params as form fields
           formDataAppender(formData) {
             formData.append('api_key', cloudinaryParams.apiKey);
@@ -118,6 +119,7 @@ export function ObjectUploader({
           method: 'PUT',
           fieldName: 'file',
           formData: false, // Don't wrap in FormData, send raw file
+          responseType: 'text', // Replit storage doesn't return JSON
         });
       }
     });
