@@ -1100,7 +1100,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ 
-        objectPath: objectPath,
         user: sanitizeUser(updatedUser)
       });
     } catch (error) {
