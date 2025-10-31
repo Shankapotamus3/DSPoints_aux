@@ -71,7 +71,20 @@ VAPID_PRIVATE_KEY=your-vapid-private-key
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### Step 5: Deploy!
+### Step 5: Deployment & First Login
+
+Railway will automatically deploy your app. The startup process includes:
+1. **Database migrations** - Creates all tables
+2. **Admin user creation** - Seeds a default admin account
+3. **Server start** - App becomes available
+
+**Default Admin Login:**
+1. Select the "Admin" profile (with 👑 crown avatar)
+2. Enter PIN: `1234`
+
+⚠️ **SECURITY**: Change this PIN immediately after first login!
+
+### Step 6: Monitor Deployment
 
 1. Railway will automatically deploy your app
 2. Once deployed, click **"View Logs"** to monitor the deployment
