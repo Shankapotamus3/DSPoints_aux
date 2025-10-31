@@ -97,7 +97,9 @@ export function ObjectUploader({
             };
           }
           
-          // Regular upload (Replit object storage)
+          // Regular upload (Replit object storage) - store the signed URL
+          // We'll extract the clean URL after upload
+          file.meta.signedUploadURL = params.url;
           return params;
         },
       })
@@ -106,9 +108,17 @@ export function ObjectUploader({
       })
       .on("upload-success", (file, response) => {
         console.log("✅ Upload success:", file?.name, response);
+        
         // Cloudinary returns the URL in response.body.secure_url
         if (response && response.body && response.body.secure_url) {
           console.log("Cloudinary URL:", response.body.secure_url);
+        } else if (file?.meta?.signedUploadURL) {
+          // For Replit storage, extract clean URL from signed URL
+          const signedUrl = file.meta.signedUploadURL as string;
+          const urlObj = new URL(signedUrl);
+          const cleanUrl = urlObj.origin + urlObj.pathname;
+          file.uploadURL = cleanUrl;
+          console.log("Replit storage URL:", cleanUrl);
         }
       })
       .on("upload-error", (file, error) => {
