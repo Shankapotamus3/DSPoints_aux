@@ -156,9 +156,12 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 }).extend({
   imageUrl: z.string().nullish().refine((url) => {
     if (!url) return true;
-    return url.startsWith('/objects/') || url.startsWith('https://storage.googleapis.com/');
+    // Accept both Cloudinary URLs and Replit object storage URLs
+    return url.startsWith('/objects/') || 
+           url.startsWith('https://storage.googleapis.com/') ||
+           url.startsWith('https://res.cloudinary.com/');
   }, {
-    message: 'Image URL must be a valid object storage URL'
+    message: 'Image URL must be a valid Cloudinary or object storage URL'
   }),
 });
 
