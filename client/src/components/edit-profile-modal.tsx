@@ -222,11 +222,13 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
                           if (avatarUrl) {
                             console.log("✅ Setting avatar URL in form:", avatarUrl);
                             setUploadedImageUrl(avatarUrl);
-                            setFormData({
+                            const newFormData = {
                               ...formData,
-                              avatarType: "image",
+                              avatarType: "image" as const,
                               avatarUrl,
-                            });
+                            };
+                            console.log("📝 New form data after upload:", newFormData);
+                            setFormData(newFormData);
                             toast({
                               title: "Avatar Uploaded!",
                               description: "Your avatar image has been uploaded successfully.",
