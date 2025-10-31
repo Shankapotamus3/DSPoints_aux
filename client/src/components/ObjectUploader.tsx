@@ -102,13 +102,24 @@ export function ObjectUploader({
           formData: true, // Use FormData for Cloudinary
           fieldName: 'file',
           headers: {},
-          responseType: 'json', // Parse JSON response
           // Add Cloudinary params as form fields
           formDataAppender(formData) {
             formData.append('api_key', cloudinaryParams.apiKey);
             formData.append('timestamp', cloudinaryParams.timestamp.toString());
             formData.append('signature', cloudinaryParams.signature);
             formData.append('folder', cloudinaryParams.folder);
+          },
+          // Manually parse the JSON response
+          getResponseData(responseText) {
+            console.log("☁️ Cloudinary raw response:", responseText);
+            try {
+              const data = JSON.parse(responseText);
+              console.log("☁️ Cloudinary parsed data:", data);
+              return data;
+            } catch (e) {
+              console.error("❌ Failed to parse Cloudinary response:", e);
+              return {};
+            }
           },
         });
       } else {
@@ -119,7 +130,6 @@ export function ObjectUploader({
           method: 'PUT',
           fieldName: 'file',
           formData: false, // Don't wrap in FormData, send raw file
-          responseType: 'text', // Replit storage doesn't return JSON
         });
       }
     });
