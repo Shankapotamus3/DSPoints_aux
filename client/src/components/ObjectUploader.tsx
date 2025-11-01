@@ -96,27 +96,21 @@ export function ObjectUploader({
       if ('cloudinaryParams' in params && params.cloudinaryParams) {
         console.log("☁️ Configuring Cloudinary upload");
         const { cloudinaryParams } = params as any;
+        
+        // Set Cloudinary params as metadata that will be sent as form fields
+        uppyInstance.setMeta({
+          api_key: cloudinaryParams.apiKey,
+          timestamp: cloudinaryParams.timestamp.toString(),
+          signature: cloudinaryParams.signature,
+          folder: cloudinaryParams.folder,
+        });
+        
         uppyInstance.use(XHRUpload, {
           endpoint: params.uploadURL,
           method: 'POST',
           formData: true, // Use FormData for Cloudinary
           fieldName: 'file',
           headers: {},
-          // Add Cloudinary params as form fields
-          // This matches the order that works in messages.tsx
-          formDataAppender(formData) {
-            console.log("📤 formDataAppender called");
-            console.log("📤 Appending Cloudinary params:", {
-              api_key: cloudinaryParams.apiKey,
-              timestamp: cloudinaryParams.timestamp,
-              folder: cloudinaryParams.folder
-            });
-            
-            formData.append('api_key', cloudinaryParams.apiKey);
-            formData.append('timestamp', cloudinaryParams.timestamp.toString());
-            formData.append('signature', cloudinaryParams.signature);
-            formData.append('folder', cloudinaryParams.folder);
-          },
           // Manually parse the JSON response
           getResponseData(responseText, response) {
             console.log("☁️ Cloudinary raw response:", responseText);
