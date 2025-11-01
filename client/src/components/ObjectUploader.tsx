@@ -110,14 +110,16 @@ export function ObjectUploader({
             formData.append('folder', cloudinaryParams.folder);
           },
           // Manually parse the JSON response
-          getResponseData(responseText) {
+          getResponseData(responseText, response) {
             console.log("☁️ Cloudinary raw response:", responseText);
+            console.log("☁️ Cloudinary response status:", response?.status);
             try {
               const data = JSON.parse(responseText);
               console.log("☁️ Cloudinary parsed data:", data);
               return data;
             } catch (e) {
               console.error("❌ Failed to parse Cloudinary response:", e);
+              console.error("❌ Response text was:", responseText);
               return {};
             }
           },
