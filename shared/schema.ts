@@ -197,10 +197,12 @@ export const choreCompletionSchema = z.object({
   if (!data.completedAt) return true;
   const completionDate = new Date(data.completedAt);
   const now = new Date();
-  // Allow completion dates up to current time, but not in the future
-  return completionDate <= now;
+  // Allow completion dates within 24 hours in the future to account for timezone differences
+  // This prevents obviously wrong dates while being lenient with timezone offsets
+  const maxAllowedDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return completionDate <= maxAllowedDate;
 }, {
-  message: 'Completion date cannot be in the future',
+  message: 'Completion date cannot be more than 24 hours in the future',
   path: ['completedAt'],
 });
 

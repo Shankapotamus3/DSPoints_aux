@@ -58,6 +58,7 @@ Preferred communication style: Simple, everyday language.
 - **Notifications**: Admins notified when chores are completed; completers notified on approval/rejection
 - **Recurring Chores**: Automatically reset to pending status and clear completion data when due date arrives
 - **Reset Logic**: GET /api/chores automatically checks and resets overdue recurring chores before returning results
+- **Timezone Handling**: Completion date validation allows dates within 24 hours of server time to accommodate users in all timezones (Railway servers run in UTC)
 
 ## Development Workflow
 - **Hot Reloading**: Vite dev server with Express API proxy
