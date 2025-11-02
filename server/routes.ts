@@ -1434,10 +1434,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Subscribe to push notifications
   app.post("/api/push/subscribe", requireAuth, async (req, res) => {
     try {
+      console.log('📱 Push subscription request received');
       const userId = getCurrentUserId(req);
       if (!userId) {
+        console.log('❌ Push subscribe: No user ID found');
         return res.status(401).json({ message: "Authentication required" });
       }
+
+      console.log(`📱 Processing push subscription for user ${userId}`);
+      console.log(`📱 Subscription data:`, JSON.stringify(req.body, null, 2));
 
       const subscriptionData = insertPushSubscriptionSchema.parse({
         userId,
@@ -1445,12 +1450,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const subscription = await storage.createPushSubscription(subscriptionData);
+      console.log(`✅ Push subscription created successfully for user ${userId}`);
+      console.log(`✅ Subscription endpoint: ${subscription.endpoint.substring(0, 50)}...`);
       res.json(subscription);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.log('❌ Push subscribe: Invalid data', error.errors);
         return res.status(400).json({ message: "Invalid subscription data", errors: error.errors });
       }
-      console.error("Error creating push subscription:", error);
+      console.error("❌ Error creating push subscription:", error);
       res.status(500).json({ message: "Failed to subscribe to push notifications" });
     }
   });
