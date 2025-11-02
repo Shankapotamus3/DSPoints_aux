@@ -1423,6 +1423,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PUSH SUBSCRIPTION ROUTES
   // ====================
 
+  // Debug endpoint to receive client push support information
+  app.post("/api/debug/push-support", (req, res) => {
+    const { supported, serviceWorker, pushManager, notification, userAgent, notificationPermission } = req.body;
+    console.log('📊 CLIENT PUSH SUPPORT CHECK:');
+    console.log(`  Supported: ${supported}`);
+    console.log(`  ServiceWorker: ${serviceWorker}`);
+    console.log(`  PushManager: ${pushManager}`);
+    console.log(`  Notification: ${notification}`);
+    console.log(`  Permission: ${notificationPermission}`);
+    console.log(`  User Agent: ${userAgent}`);
+    res.json({ received: true });
+  });
+
   // Debug endpoint to receive client-side push errors
   app.post("/api/debug/push-error", (req, res) => {
     const { step, error, stack, userAgent } = req.body;

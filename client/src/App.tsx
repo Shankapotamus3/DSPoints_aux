@@ -106,10 +106,28 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       const pushSupported = isPushNotificationSupported();
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasPushManager = 'PushManager' in window;
+      const hasNotification = 'Notification' in window;
+      
       console.log('Push notification support check:', pushSupported);
-      console.log('ServiceWorker:', 'serviceWorker' in navigator);
-      console.log('PushManager:', 'PushManager' in window);
-      console.log('Notification:', 'Notification' in window);
+      console.log('ServiceWorker:', hasServiceWorker);
+      console.log('PushManager:', hasPushManager);
+      console.log('Notification:', hasNotification);
+      
+      // Report to server for debugging
+      fetch('/api/debug/push-support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supported: pushSupported,
+          serviceWorker: hasServiceWorker,
+          pushManager: hasPushManager,
+          notification: hasNotification,
+          userAgent: navigator.userAgent,
+          notificationPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unavailable',
+        }),
+      }).catch(console.error);
       
       if (pushSupported) {
         // Delay subscription slightly to avoid blocking UI
