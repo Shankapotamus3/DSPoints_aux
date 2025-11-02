@@ -96,20 +96,39 @@ export async function subscribeToPushNotifications(): Promise<void> {
       }
     }
 
-    // Get service worker registration with timeout
-    console.log('subscribeToPushNotifications: Waiting for service worker...');
-    await reportStep('waiting_service_worker', {});
+    // Get service worker registration
+    console.log('subscribeToPushNotifications: Checking service worker registration...');
+    await reportStep('checking_service_worker', {});
     
-    // Add a timeout to prevent hanging indefinitely
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<ServiceWorkerRegistration>((_, reject) => 
-        setTimeout(() => reject(new Error('Service worker timeout after 10s')), 10000)
-      )
-    ]).catch(async (error) => {
-      await reportError('service_worker_timeout', error);
+    // First, check if service worker is registered at all
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      const error = new Error('No service worker registered');
+      await reportError('no_service_worker', error);
       throw error;
+    }
+    
+    await reportStep('service_worker_found', { 
+      active: !!registration.active,
+      installing: !!registration.installing,
+      waiting: !!registration.waiting,
     });
+    
+    // If not active yet, wait for it with a timeout
+    if (!registration.active) {
+      console.log('subscribeToPushNotifications: Waiting for service worker to activate...');
+      await reportStep('waiting_activation', {});
+      
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Service worker activation timeout')), 5000)
+        )
+      ]).catch(async (error) => {
+        await reportError('activation_timeout', error);
+        throw error;
+      });
+    }
     
     console.log('subscribeToPushNotifications: Service worker ready');
     await reportStep('service_worker_ready', {});
