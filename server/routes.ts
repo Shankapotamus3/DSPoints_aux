@@ -211,7 +211,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to send push notification to a specific user
   async function sendPushNotification(userId: string, title: string, message: string, type: string, choreId?: string) {
     try {
+      console.log(`🔔 Attempting to send push notification to user ${userId}`);
+      console.log(`📧 Title: "${title}", Type: ${type}`);
+      
       const subscriptions = await storage.getPushSubscriptions(userId);
+      console.log(`📱 Found ${subscriptions.length} push subscription(s) for user ${userId}`);
+      
+      if (subscriptions.length === 0) {
+        console.log(`⚠️ No push subscriptions found for user ${userId} - notification will not be sent`);
+        return;
+      }
       
       const payload = JSON.stringify({
         title,
@@ -221,8 +230,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Send to all subscriptions for this user
-      const promises = subscriptions.map(async (sub) => {
+      const promises = subscriptions.map(async (sub, index) => {
         try {
+          console.log(`📤 Sending push notification ${index + 1}/${subscriptions.length} to endpoint: ${sub.endpoint.substring(0, 50)}...`);
           await webpush.sendNotification(
             {
               endpoint: sub.endpoint,
@@ -233,18 +243,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
             payload
           );
+          console.log(`✅ Push notification ${index + 1} sent successfully`);
         } catch (error: any) {
           // If subscription is no longer valid (410 Gone), remove it
           if (error.statusCode === 410) {
+            console.log(`🗑️ Removing invalid push subscription (410 Gone): ${sub.endpoint.substring(0, 50)}...`);
             await storage.deletePushSubscription(sub.endpoint);
           }
-          console.error(`Failed to send push to ${sub.endpoint}:`, error);
+          console.error(`❌ Failed to send push ${index + 1}:`, error.message || error);
         }
       });
 
       await Promise.all(promises);
+      console.log(`✅ Completed sending push notifications to user ${userId}`);
     } catch (error) {
-      console.error('Failed to send push notification:', error);
+      console.error('❌ Failed to send push notification:', error);
     }
   }
 
