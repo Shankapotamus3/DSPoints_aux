@@ -4,14 +4,6 @@ import "./index.css";
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
-  // Unregister existing service workers to ensure fresh load
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (let registration of registrations) {
-      registration.unregister();
-      console.log('PWA: Unregistered old service worker');
-    }
-  });
-
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
