@@ -96,10 +96,21 @@ export async function subscribeToPushNotifications(): Promise<void> {
       }
     }
 
-    // Get service worker registration
+    // Get service worker registration with timeout
     console.log('subscribeToPushNotifications: Waiting for service worker...');
     await reportStep('waiting_service_worker', {});
-    const registration = await navigator.serviceWorker.ready;
+    
+    // Add a timeout to prevent hanging indefinitely
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<ServiceWorkerRegistration>((_, reject) => 
+        setTimeout(() => reject(new Error('Service worker timeout after 10s')), 10000)
+      )
+    ]).catch(async (error) => {
+      await reportError('service_worker_timeout', error);
+      throw error;
+    });
+    
     console.log('subscribeToPushNotifications: Service worker ready');
     await reportStep('service_worker_ready', {});
 
