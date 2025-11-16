@@ -28,7 +28,8 @@ export default function LotterySection() {
 
   const drawTicket = useMutation({
     mutationFn: async () => {
-      return await apiRequest('POST', '/api/lottery/draw', {});
+      const response = await apiRequest('POST', '/api/lottery/draw', {});
+      return await response.json();
     },
     onSuccess: (data: any) => {
       if (!data || !data.ticket) {
