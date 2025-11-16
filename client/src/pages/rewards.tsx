@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Gift, Coins, Filter } from "lucide-react";
+import { Plus, Gift, Coins, Filter, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RewardCard from "@/components/reward-card";
 import AddRewardModal from "@/components/add-reward-modal";
+import LotterySection from "@/components/lottery-section";
 import type { Reward } from "@shared/schema";
 
 const REWARD_CATEGORIES = {
@@ -91,7 +92,10 @@ export default function Rewards() {
           </div>
         </div>
 
-        <Tabs defaultValue="available" className="space-y-6">
+        {/* Lottery Section */}
+        <LotterySection />
+
+        <Tabs defaultValue="available" className="space-y-6 mt-8">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="available" className="flex items-center space-x-2">
               <Gift size={16} />
