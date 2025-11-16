@@ -100,6 +100,15 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const lotteryTickets = pgTable("lottery_tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  outcome: text("outcome").notNull(),
+  pointsAwarded: integer("points_awarded").notNull(),
+  specialReward: text("special_reward"), // For non-point outcomes like "Free reward" or "Have an orgasm"
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   points: true,
@@ -180,6 +189,11 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
   createdAt: true,
 });
 
+export const insertLotteryTicketSchema = createInsertSchema(lotteryTickets).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const choreApprovalSchema = z.object({
   comment: z.string().optional(),
 });
@@ -222,6 +236,8 @@ export type InsertPunishment = z.infer<typeof insertPunishmentSchema>;
 export type Punishment = typeof punishments.$inferSelect;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertLotteryTicket = z.infer<typeof insertLotteryTicketSchema>;
+export type LotteryTicket = typeof lotteryTickets.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
 export type PointAdjustment = z.infer<typeof pointAdjustmentSchema>;
 export type ChoreCompletion = z.infer<typeof choreCompletionSchema>;
