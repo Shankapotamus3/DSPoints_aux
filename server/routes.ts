@@ -1512,6 +1512,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ====================
+  // LOTTERY TICKET ROUTES
+  // ====================
+
+  // Get user's lottery ticket history
+  app.get("/api/lottery/tickets", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tickets = await storage.getLotteryTickets(userId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error getting lottery tickets:", error);
+      res.status(500).json({ message: "Failed to get lottery tickets" });
+    }
+  });
+
+  // Purchase and draw a lottery ticket
+  app.post("/api/lottery/draw", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Import lottery logic
+      const { drawLotteryTicket, LOTTERY_TICKET_COST } = await import('./lottery.js');
+
+      // Check if user has enough points
+      if (user.points < LOTTERY_TICKET_COST) {
+        return res.status(400).json({ message: "Not enough points to purchase a lottery ticket" });
+      }
+
+      // Draw a random outcome
+      const outcome = drawLotteryTicket();
+
+      // Handle special case: "Lose all points"
+      let actualPointsAwarded = outcome.pointsAwarded;
+      if (outcome.pointsAwarded === -999) {
+        actualPointsAwarded = -(user.points - LOTTERY_TICKET_COST);
+      }
+
+      // Calculate new point balance
+      const newBalance = user.points - LOTTERY_TICKET_COST + actualPointsAwarded;
+
+      // Update user points
+      await storage.updateUserPoints(userId, newBalance);
+
+      // Create lottery ticket record
+      const ticket = await storage.createLotteryTicket({
+        userId,
+        outcome: outcome.outcome,
+        pointsAwarded: actualPointsAwarded,
+        specialReward: outcome.specialReward || null,
+      });
+
+      // Create transaction record
+      await storage.createTransaction({
+        userId,
+        type: 'spend',
+        amount: LOTTERY_TICKET_COST,
+        description: 'Lottery ticket purchase',
+      });
+
+      if (actualPointsAwarded > 0) {
+        await storage.createTransaction({
+          userId,
+          type: 'earn',
+          amount: actualPointsAwarded,
+          description: `Lottery win: ${outcome.outcome}`,
+        });
+      } else if (actualPointsAwarded < 0) {
+        await storage.createTransaction({
+          userId,
+          type: 'spend',
+          amount: Math.abs(actualPointsAwarded),
+          description: `Lottery loss: ${outcome.outcome}`,
+        });
+      }
+
+      // Get updated user
+      const updatedUser = await storage.getUser(userId);
+
+      res.json({
+        ticket,
+        user: updatedUser,
+        netChange: actualPointsAwarded - LOTTERY_TICKET_COST,
+      });
+    } catch (error) {
+      console.error("Error drawing lottery ticket:", error);
+      res.status(500).json({ message: "Failed to draw lottery ticket" });
+    }
+  });
+
   const httpServer = createServer(app);
   console.log("🚀 HTTP server created successfully");
   return httpServer;

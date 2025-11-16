@@ -15,6 +15,8 @@ import {
   type InsertPunishment,
   type PushSubscription,
   type InsertPushSubscription,
+  type LotteryTicket,
+  type InsertLotteryTicket,
   type ChoreStatus,
   users,
   chores,
@@ -23,7 +25,8 @@ import {
   notifications,
   messages,
   punishments,
-  pushSubscriptions
+  pushSubscriptions,
+  lotteryTickets
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, or, and, desc, lte } from "drizzle-orm";
@@ -89,6 +92,10 @@ export interface IStorage {
   createPushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription>;
   deletePushSubscription(endpoint: string): Promise<boolean>;
   deletePushSubscriptionsByUserId(userId: string): Promise<void>;
+
+  // Lottery ticket methods
+  getLotteryTickets(userId: string): Promise<LotteryTicket[]>;
+  createLotteryTicket(ticket: InsertLotteryTicket): Promise<LotteryTicket>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -514,6 +521,23 @@ export class DatabaseStorage implements IStorage {
         break;
     }
     return now;
+  }
+
+  // Lottery ticket methods
+  async getLotteryTickets(userId: string): Promise<LotteryTicket[]> {
+    return await db
+      .select()
+      .from(lotteryTickets)
+      .where(eq(lotteryTickets.userId, userId))
+      .orderBy(desc(lotteryTickets.createdAt));
+  }
+
+  async createLotteryTicket(ticket: InsertLotteryTicket): Promise<LotteryTicket> {
+    const [lotteryTicket] = await db
+      .insert(lotteryTickets)
+      .values(ticket)
+      .returning();
+    return lotteryTicket;
   }
 }
 
