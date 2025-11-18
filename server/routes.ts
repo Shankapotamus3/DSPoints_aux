@@ -211,12 +211,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to send push notification to a specific user
   async function sendPushNotification(userId: string, title: string, message: string, type: string, choreId?: string) {
     try {
-      // Skip if VAPID keys are not configured
-      if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-        console.log(`⚠️ Skipping push notification - VAPID keys not configured`);
-        return;
-      }
-
       console.log(`🔔 Attempting to send push notification to user ${userId}`);
       console.log(`📧 Title: "${title}", Type: ${type}`);
       
