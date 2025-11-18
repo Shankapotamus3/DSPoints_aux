@@ -11,6 +11,10 @@ import { db } from "./db";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import webpush from "web-push";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // Extend express-session types
 declare module 'express-session' {
@@ -1939,6 +1943,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting yahtzee games:", error);
       res.status(500).json({ message: "Failed to get games" });
+    }
+  });
+
+  // TEMPORARY: Admin-only endpoint to run database migrations
+  // DELETE THIS AFTER RUNNING ON RAILWAY
+  app.post("/api/admin/run-migration", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log("🔧 Running database migration...");
+      const { stdout, stderr } = await execAsync("npm run db:push -- --force");
+      
+      console.log("✅ Migration output:", stdout);
+      if (stderr) {
+        console.log("⚠️ Migration stderr:", stderr);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Database migration completed successfully",
+        output: stdout,
+        stderr: stderr || null
+      });
+    } catch (error: any) {
+      console.error("❌ Migration failed:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Migration failed", 
+        error: error.message,
+        output: error.stdout || null,
+        stderr: error.stderr || null
+      });
     }
   });
 

@@ -53,6 +53,33 @@ export default function Family() {
     },
   });
 
+  // TEMPORARY: Database migration mutation (DELETE AFTER USE)
+  const runMigrationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/run-migration", {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Migration failed");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "✅ Migration Successful",
+        description: "Database has been updated. You can now delete this button and the backend endpoint.",
+      });
+      console.log("Migration output:", data);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Migration Failed",
+        description: error.message || "Failed to run migration",
+        variant: "destructive",
+      });
+      console.error("Migration error:", error);
+    },
+  });
+
   const handleAdminToggle = (userId: string, currentAdminStatus: boolean) => {
     // Prevent admin from removing their own admin status if they're the last admin
     if (currentAdminStatus && userId === currentUser?.id) {
@@ -111,6 +138,30 @@ export default function Family() {
             Add Family Member
           </Button>
         </div>
+
+        {/* TEMPORARY: Migration button - DELETE AFTER USING ON RAILWAY */}
+        {isCurrentUserAdmin && (
+          <Card className="mb-6 border-orange-500 bg-orange-50 dark:bg-orange-950">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-orange-900 dark:text-orange-100">⚠️ Database Migration Required</h3>
+                  <p className="text-sm text-orange-700 dark:text-orange-300">
+                    Click this button to update the Railway database. Delete this button and the backend endpoint after use.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => runMigrationMutation.mutate()}
+                  disabled={runMigrationMutation.isPending}
+                  variant="destructive"
+                  data-testid="button-run-migration"
+                >
+                  {runMigrationMutation.isPending ? "Running..." : "Run Migration"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {users.length === 0 ? (
           <Card>
