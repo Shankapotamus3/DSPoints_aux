@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import NotFound from "./pages/not-found";
-import Dashboard from "./pages/dashboard";
 import Chores from "./pages/chores";
 import Rewards from "./pages/rewards";
 import Yahtzee from "./pages/yahtzee";
@@ -53,7 +52,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">
-        {() => <ProtectedRoute component={Dashboard} />}
+        {() => <ProtectedRoute component={Chores} />}
       </Route>
       <Route path="/chores">
         {() => <ProtectedRoute component={Chores} />}
