@@ -465,7 +465,7 @@ export default function YahtzeePage() {
       <CardHeader>
         <CardTitle className="space-y-3">
           <div className="flex items-center justify-center">
-            <Avatar className="w-16 h-16 text-3xl">
+            <Avatar className="w-24 h-24 text-5xl">
               {user?.avatarType === "image" && user?.avatarUrl ? (
                 <AvatarImage 
                   src={user.avatarUrl} 
