@@ -1956,6 +1956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           player1_id VARCHAR NOT NULL REFERENCES users(id),
           player2_id VARCHAR NOT NULL REFERENCES users(id),
           current_player_id VARCHAR NOT NULL REFERENCES users(id),
+          status TEXT NOT NULL DEFAULT 'active',
           dice TEXT NOT NULL DEFAULT '[]',
           held_dice TEXT NOT NULL DEFAULT '[false,false,false,false,false]',
           rolls_remaining INTEGER NOT NULL DEFAULT 3,
@@ -1963,12 +1964,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           player2_scorecard TEXT NOT NULL,
           player1_yahtzee_bonus INTEGER NOT NULL DEFAULT 0,
           player2_yahtzee_bonus INTEGER NOT NULL DEFAULT 0,
-          status VARCHAR NOT NULL DEFAULT 'active',
           winner_id VARCHAR REFERENCES users(id),
           player1_final_score INTEGER,
           player2_final_score INTEGER,
           created_at TIMESTAMP NOT NULL DEFAULT now(),
-          updated_at TIMESTAMP NOT NULL DEFAULT now()
+          completed_at TIMESTAMP
         );
       `);
       
@@ -1978,11 +1978,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ADD COLUMN IF NOT EXISTS user_id VARCHAR REFERENCES users(id);
       `);
       
+      // Add completed_at column to yahtzee_games if it doesn't exist
+      await db.execute(sql`
+        ALTER TABLE yahtzee_games
+        ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+      `);
+      
       console.log("✅ Migration completed successfully");
       
       res.json({ 
         success: true, 
-        message: "Database migration completed successfully. Tables created!"
+        message: "Database migration completed successfully. Tables created and updated!"
       });
     } catch (error: any) {
       console.error("❌ Migration failed:", error);
