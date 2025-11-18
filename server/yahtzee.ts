@@ -25,35 +25,42 @@ export interface YahtzeeGameState {
 
 // Roll dice that are not held
 export function rollDice(currentDice: number[], heldDice: boolean[]): number[] {
+  // If no dice yet (first roll), roll all 5
+  if (currentDice.length === 0) {
+    return [1, 2, 3, 4, 5].map(() => Math.floor(Math.random() * 6) + 1);
+  }
+  
   return currentDice.map((die, index) => 
     heldDice[index] ? die : Math.floor(Math.random() * 6) + 1
   );
 }
 
-// Initialize a new game with first roll already done
-export function initializeGame(): YahtzeeGameState {
-  // Start with first roll already completed
-  const initialDice = rollDice([1, 1, 1, 1, 1], [false, false, false, false, false]);
-  
+// Initialize a blank scorecard
+export function initializeScorecard(): YahtzeeScorecard {
   return {
-    dice: initialDice,
+    ones: null,
+    twos: null,
+    threes: null,
+    fours: null,
+    fives: null,
+    sixes: null,
+    threeOfAKind: null,
+    fourOfAKind: null,
+    fullHouse: null,
+    smallStraight: null,
+    largeStraight: null,
+    yahtzee: null,
+    chance: null,
+  };
+}
+
+// Initialize a new game state (no auto-roll, blank dice)
+export function initializeGame(): YahtzeeGameState {
+  return {
+    dice: [], // Empty until first manual roll
     heldDice: [false, false, false, false, false],
-    rollsRemaining: 2, // Already used one roll
-    scorecard: {
-      ones: null,
-      twos: null,
-      threes: null,
-      fours: null,
-      fives: null,
-      sixes: null,
-      threeOfAKind: null,
-      fourOfAKind: null,
-      fullHouse: null,
-      smallStraight: null,
-      largeStraight: null,
-      yahtzee: null,
-      chance: null,
-    },
+    rollsRemaining: 3, // Full 3 rolls available
+    scorecard: initializeScorecard(),
   };
 }
 
