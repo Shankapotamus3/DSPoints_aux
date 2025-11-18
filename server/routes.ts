@@ -1670,6 +1670,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         player2FinalScore: null,
       });
 
+      // Notify opponent about the new game challenge
+      const challenger = await storage.getUser(userId);
+      if (challenger) {
+        await sendPushNotification(
+          opponentId,
+          "Yahtzee Challenge!",
+          `${challenger.displayName || challenger.username} has challenged you to a game of Yahtzee!`,
+          "yahtzee_challenge"
+        );
+      }
+
       res.json(game);
     } catch (error) {
       console.error("Error starting yahtzee game:", error);
@@ -1843,6 +1854,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dice: '[]', // Empty until next player rolls
           heldDice: '[false,false,false,false,false]',
         };
+        
+        // Send push notification to next player
+        const currentPlayer = await storage.getUser(userId);
+        const nextPlayer = await storage.getUser(nextPlayerId);
+        if (nextPlayer && currentPlayer) {
+          await sendPushNotification(
+            nextPlayerId,
+            "Your turn in Yahtzee!",
+            `${currentPlayer.displayName || currentPlayer.username} just finished their turn. It's your turn to roll!`,
+            "yahtzee_turn"
+          );
+        }
       }
 
       const updatedGame = await storage.updateYahtzeeGame(gameId, updateData);
@@ -1850,6 +1873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         game: updatedGame,
         gameComplete: bothPlayersComplete,
+        turnChanged: !bothPlayersComplete,
       });
     } catch (error) {
       console.error("Error scoring category:", error);
