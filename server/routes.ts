@@ -1812,29 +1812,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const winnerId = player1FinalScore > player2FinalScore ? game.player1Id : 
                          (player2FinalScore > player1FinalScore ? game.player2Id : null);
         
-        const player1PointsAwarded = calculatePointsAwarded(player1FinalScore);
-        const player2PointsAwarded = calculatePointsAwarded(player2FinalScore);
-
-        // Award points to both players
+        // Get both players
         const player1 = await storage.getUser(game.player1Id);
         const player2 = await storage.getUser(game.player2Id);
         
+        // Calculate points based on new reward system
+        let player1PointsAwarded = 0;
+        let player2PointsAwarded = 0;
+        
+        if (winnerId) {
+          const winner = winnerId === game.player1Id ? player1 : player2;
+          const loser = winnerId === game.player1Id ? player2 : player1;
+          const winnerScore = winnerId === game.player1Id ? player1FinalScore : player2FinalScore;
+          const loserScore = winnerId === game.player1Id ? player2FinalScore : player1FinalScore;
+          const victoryMargin = winnerScore - loserScore;
+          const isWinnerPlayer1 = winnerId === game.player1Id;
+          
+          // Winner rewards
+          if (winner && !winner.isAdmin) {
+            // Non-admin win: 1 base point + 1 point per 10-point margin
+            const winPoints = 1 + Math.floor(victoryMargin / 10);
+            if (isWinnerPlayer1) {
+              player1PointsAwarded = winPoints;
+            } else {
+              player2PointsAwarded = winPoints;
+            }
+          } else if (winner && winner.isAdmin) {
+            // Admin win: use standard 1:10 ratio
+            const winPoints = calculatePointsAwarded(winnerScore);
+            if (isWinnerPlayer1) {
+              player1PointsAwarded = winPoints;
+            } else {
+              player2PointsAwarded = winPoints;
+            }
+          }
+          
+          // Loser handling
+          if (loser && !loser.isAdmin) {
+            // Non-admin loss: assign a punishment (no points)
+            const loserId = isWinnerPlayer1 ? game.player2Id : game.player1Id;
+            const punishmentNumber = Math.floor(Math.random() * 59) + 1; // Random 1-59
+            await storage.createPunishment({
+              userId: loserId,
+              number: punishmentNumber,
+              text: `Lost Yahtzee game to ${winner!.displayName || winner!.username} (${loserScore} - ${winnerScore})`,
+              isCompleted: false,
+            });
+          } else if (loser && loser.isAdmin) {
+            // Admin loss: still get points based on score
+            const losePoints = calculatePointsAwarded(loserScore);
+            if (isWinnerPlayer1) {
+              player2PointsAwarded = losePoints;
+            } else {
+              player1PointsAwarded = losePoints;
+            }
+          }
+        } else {
+          // Tie - award points based on score for both
+          player1PointsAwarded = calculatePointsAwarded(player1FinalScore);
+          player2PointsAwarded = calculatePointsAwarded(player2FinalScore);
+        }
+
+        // Award points to both players
         await storage.updateUserPoints(game.player1Id, player1!.points + player1PointsAwarded);
         await storage.updateUserPoints(game.player2Id, player2!.points + player2PointsAwarded);
 
         // Create transaction records for both players
-        await storage.createTransaction({
-          userId: game.player1Id,
-          type: 'earn',
-          amount: player1PointsAwarded,
-          description: `Yahtzee game vs ${player2!.displayName || player2!.username} - Score: ${player1FinalScore}`,
-        });
-        await storage.createTransaction({
-          userId: game.player2Id,
-          type: 'earn',
-          amount: player2PointsAwarded,
-          description: `Yahtzee game vs ${player1!.displayName || player1!.username} - Score: ${player2FinalScore}`,
-        });
+        if (player1PointsAwarded > 0) {
+          await storage.createTransaction({
+            userId: game.player1Id,
+            type: 'earn',
+            amount: player1PointsAwarded,
+            description: `Yahtzee game vs ${player2!.displayName || player2!.username} - Score: ${player1FinalScore}`,
+          });
+        }
+        if (player2PointsAwarded > 0) {
+          await storage.createTransaction({
+            userId: game.player2Id,
+            type: 'earn',
+            amount: player2PointsAwarded,
+            description: `Yahtzee game vs ${player1!.displayName || player1!.username} - Score: ${player2FinalScore}`,
+          });
+        }
 
         updateData = {
           ...updateData,

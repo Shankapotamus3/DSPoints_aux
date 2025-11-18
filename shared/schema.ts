@@ -84,6 +84,7 @@ export const messages = pgTable("messages", {
 
 export const punishments = pgTable("punishments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id), // User who received this punishment
   number: integer("number").notNull(), // Random number 1-59
   text: text("text"), // Optional text description
   isCompleted: boolean("is_completed").notNull().default(false),
@@ -196,13 +197,16 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   }),
 });
 
-export const insertPunishmentSchema = createInsertSchema(punishments).omit({
-  id: true,
-  createdAt: true,
-  completedAt: true,
-}).extend({
-  number: z.number().int().min(1).max(59),
-});
+export const insertPunishmentSchema = createInsertSchema(punishments)
+  .omit({
+    id: true,
+    createdAt: true,
+    completedAt: true,
+  })
+  .augment({
+    number: z.number().int().min(1).max(59),
+    userId: z.string().uuid().nullable(),
+  });
 
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
   id: true,
