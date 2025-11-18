@@ -114,21 +114,35 @@ function CssDice({ value, isHeld, onClick }: { value: number | null; isHeld: boo
       }`}
       data-testid={`dice-${value}`}
     >
-      <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-2 gap-0.5">
+      <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-2">
         {/* Top row */}
-        {dots.includes("top-left") && <div className="flex items-start justify-start"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
+        <div className="flex items-start justify-start">
+          {dots.includes("top-left") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
         <div />
-        {dots.includes("top-right") && <div className="flex items-start justify-end"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
+        <div className="flex items-start justify-end">
+          {dots.includes("top-right") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
         
         {/* Middle row */}
-        {dots.includes("middle-left") && <div className="flex items-center justify-start"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
-        {dots.includes("center") && <div className="flex items-center justify-center"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
-        {dots.includes("middle-right") && <div className="flex items-center justify-end"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
+        <div className="flex items-center justify-start">
+          {dots.includes("middle-left") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
+        <div className="flex items-center justify-center">
+          {dots.includes("center") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
+        <div className="flex items-center justify-end">
+          {dots.includes("middle-right") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
         
         {/* Bottom row */}
-        {dots.includes("bottom-left") && <div className="flex items-end justify-start"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
+        <div className="flex items-end justify-start">
+          {dots.includes("bottom-left") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
         <div />
-        {dots.includes("bottom-right") && <div className="flex items-end justify-end"><div className={`w-2 h-2 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} /></div>}
+        <div className="flex items-end justify-end">
+          {dots.includes("bottom-right") && <div className={`w-2.5 h-2.5 rounded-full ${isHeld ? "bg-white" : "bg-gray-900 dark:bg-white"}`} />}
+        </div>
       </div>
       {isHeld && (
         <div className="absolute -bottom-5 left-0 right-0 text-xs font-bold text-blue-600 dark:text-blue-400 text-center">
