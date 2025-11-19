@@ -1984,11 +1984,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
       `);
       
+      // Create lottery_tickets table if it doesn't exist
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS lottery_tickets (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id VARCHAR NOT NULL REFERENCES users(id),
+          outcome TEXT NOT NULL,
+          points_awarded INTEGER NOT NULL,
+          special_reward TEXT,
+          created_at TIMESTAMP NOT NULL DEFAULT now()
+        );
+      `);
+      
       console.log("✅ Migration completed successfully");
       
       res.json({ 
         success: true, 
-        message: "Database migration completed successfully. Tables created and updated!"
+        message: "Database migration completed successfully. All tables created and updated!"
       });
     } catch (error: any) {
       console.error("❌ Migration failed:", error);
