@@ -12,6 +12,7 @@ import { db } from "./db";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import webpush from "web-push";
+import { rollDice, calculateCategoryScore, calculateFinalScore, isGameComplete, calculatePointsAwarded, isYahtzee } from "./yahtzee";
 
 // Extend express-session types
 declare module 'express-session' {
