@@ -8,7 +8,7 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { db } from "./db";
+import { db, pool } from "./db";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import webpush from "web-push";
@@ -96,20 +96,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error("⚠️  Default admin initialization error:", error);
   });
 
-  // Setup session store - use PostgreSQL if available, otherwise fall back to memory store
+  // Setup session store - use PostgreSQL with shared pool for better performance
   let sessionStore;
   
   if (process.env.DATABASE_URL) {
     try {
       const PgSession = connectPgSimple(session);
       sessionStore = new PgSession({
-        conObject: {
-          connectionString: process.env.DATABASE_URL,
-        },
+        pool: pool as any, // Reuse the existing database pool for faster connections
         tableName: "session",
         createTableIfMissing: true,
       });
-      console.log("✅ PostgreSQL session store configured");
+      console.log("✅ PostgreSQL session store configured (shared pool)");
     } catch (error) {
       console.error("⚠️  Failed to configure PostgreSQL session store, using memory store:", error);
     }

@@ -31,4 +31,35 @@ if (isNeonDatabase) {
   console.log("📊 Using standard PostgreSQL driver");
 }
 
-export { pool, db };
+// Prewarm the database connection to avoid cold start delays
+async function prewarmDatabase(): Promise<void> {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log("🔥 Database connection prewarmed");
+  } catch (error) {
+    console.error("⚠️ Failed to prewarm database:", error);
+  }
+}
+
+// Keep-alive ping to prevent idle connection timeouts (every 4 minutes)
+let keepAliveInterval: NodeJS.Timeout | null = null;
+
+function startKeepAlive(): void {
+  if (keepAliveInterval) return;
+  
+  keepAliveInterval = setInterval(async () => {
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+    } catch (error) {
+      console.error("⚠️ Keep-alive ping failed:", error);
+    }
+  }, 4 * 60 * 1000); // 4 minutes
+  
+  console.log("💓 Database keep-alive started (4 min interval)");
+}
+
+export { pool, db, isNeonDatabase, prewarmDatabase, startKeepAlive };

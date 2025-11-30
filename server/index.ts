@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { prewarmDatabase, startKeepAlive } from "./db";
 
 const app = express();
 app.use(express.json());
@@ -41,6 +42,10 @@ app.use((req, res, next) => {
     console.log("🔧 Starting server initialization...");
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+    
+    // Prewarm database connection BEFORE routes to avoid cold start delays
+    await prewarmDatabase();
+    startKeepAlive();
     
     const server = await registerRoutes(app);
 
