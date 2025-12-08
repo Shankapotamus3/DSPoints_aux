@@ -75,6 +75,22 @@ Preferred communication style: Simple, everyday language.
   - Standard PostgreSQL (Railway): Uses `pg` with traditional connection pooling
 - **Manual Migrations on Railway**: Database schema changes are applied via direct SQL execution when deploying new features that require table modifications
 
+## Performance Optimizations
+- **Database Prewarming**: Server prewarms database connection on startup to avoid cold start delays
+- **Keep-alive Pings**: Server pings database every 4 minutes to prevent idle connection timeouts
+- **Shared Connection Pool**: Session store reuses the main database pool for faster connections
+- **Route-level Code Splitting**: Pages are lazy-loaded using React.lazy() to reduce initial bundle size
+
+## Railway Keep-Alive for Push Notifications
+Railway's free/basic tier scales containers to zero when idle. This means:
+- **Push notifications won't work when container is sleeping** - There's no server to send them
+- **First request after idle will be slow** - Container must cold-boot
+
+**Solutions:**
+1. **External Keep-alive (Free)**: Use a free service like UptimeRobot (uptimerobot.com) or cron-job.org to ping `/health` every 5 minutes
+2. **Railway Always-On ($)**: Upgrade to Railway's paid plan with Always-On enabled
+3. **Accept delays**: If notifications aren't critical, accept that they'll only work when server is awake
+
 # Image Upload System
 
 ## Storage Backend Selection

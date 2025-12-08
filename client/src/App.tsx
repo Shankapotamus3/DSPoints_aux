@@ -2,23 +2,32 @@ import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import NotFound from "./pages/not-found";
-import Chores from "./pages/chores";
-import Rewards from "./pages/rewards";
-import Yahtzee from "./pages/yahtzee";
-import Messages from "./pages/messages";
-import Punishments from "./pages/punishments";
-import Family from "./pages/family";
-import History from "./pages/history";
 import Login from "./pages/Login";
-import PushTest from "./pages/push-test";
 import Header from "./components/header";
 import Navigation from "./components/navigation";
 import { subscribeToPushNotifications, isPushNotificationSupported } from "./lib/pushNotifications";
 
-// Protected route wrapper
+const Chores = lazy(() => import("./pages/chores"));
+const Rewards = lazy(() => import("./pages/rewards"));
+const Yahtzee = lazy(() => import("./pages/yahtzee"));
+const Messages = lazy(() => import("./pages/messages"));
+const Punishments = lazy(() => import("./pages/punishments"));
+const Family = lazy(() => import("./pages/family"));
+const History = lazy(() => import("./pages/history"));
+const PushTest = lazy(() => import("./pages/push-test"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
+// Protected route wrapper with Suspense for lazy-loaded components
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [location, setLocation] = useLocation();
   const { data: user, isLoading, error } = useQuery({
@@ -44,7 +53,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return null;
   }
 
-  return <Component />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Component />
+    </Suspense>
+  );
 }
 
 function Router() {
