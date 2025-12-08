@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Trophy, Users, Check, Clock, Spade, Heart, Diamond, Club } from "lucide-react";
+import { Trophy, Users, Check, Clock, Spade, Heart, Diamond, Club, X } from "lucide-react";
 
 interface User {
   id: string;
@@ -40,6 +40,8 @@ interface PokerRound {
   status: string;
   player1Cards: string;
   player2Cards: string;
+  player1DiscardIndices: string | null;
+  player2DiscardIndices: string | null;
   player1Ready: boolean;
   player2Ready: boolean;
   player1BestHand: string | null;
@@ -57,7 +59,19 @@ const SUITS: Record<string, { icon: typeof Spade; color: string }> = {
   'C': { icon: Club, color: 'text-gray-900 dark:text-white' },
 };
 
-function PlayingCard({ card, isHighlighted = false }: { card: string; isHighlighted?: boolean }) {
+function PlayingCard({ 
+  card, 
+  isHighlighted = false,
+  isSelected = false,
+  isSelectable = false,
+  onClick
+}: { 
+  card: string; 
+  isHighlighted?: boolean;
+  isSelected?: boolean;
+  isSelectable?: boolean;
+  onClick?: () => void;
+}) {
   const suitChar = card[card.length - 1];
   const rank = card.slice(0, -1);
   const suit = SUITS[suitChar] || SUITS['S'];
@@ -65,12 +79,22 @@ function PlayingCard({ card, isHighlighted = false }: { card: string; isHighligh
   
   return (
     <div
-      className={`relative w-14 h-20 sm:w-16 sm:h-24 bg-white dark:bg-gray-800 rounded-lg border-2 flex flex-col items-center justify-between p-1 sm:p-2 shadow-md ${
-        isHighlighted 
-          ? 'border-yellow-400 ring-2 ring-yellow-400/50' 
-          : 'border-gray-300 dark:border-gray-600'
+      onClick={isSelectable ? onClick : undefined}
+      className={`relative w-14 h-20 sm:w-16 sm:h-24 bg-white dark:bg-gray-800 rounded-lg border-2 flex flex-col items-center justify-between p-1 sm:p-2 shadow-md transition-all ${
+        isSelectable ? 'cursor-pointer hover:scale-105' : ''
+      } ${
+        isSelected 
+          ? 'border-red-500 ring-2 ring-red-500/50 -translate-y-2' 
+          : isHighlighted 
+            ? 'border-yellow-400 ring-2 ring-yellow-400/50' 
+            : 'border-gray-300 dark:border-gray-600'
       }`}
     >
+      {isSelected && (
+        <div className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5">
+          <X className="w-3 h-3 text-white" />
+        </div>
+      )}
       <div className={`text-sm sm:text-base font-bold ${suit.color}`}>{rank}</div>
       <SuitIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${suit.color}`} />
       <div className={`text-sm sm:text-base font-bold ${suit.color}`}>{rank}</div>
@@ -91,6 +115,7 @@ function CardBack() {
 export default function PokerPage() {
   const { toast } = useToast();
   const [selectedOpponent, setSelectedOpponent] = useState<string>("");
+  const [selectedDiscards, setSelectedDiscards] = useState<number[]>([]);
 
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/user"],
@@ -125,6 +150,35 @@ export default function PokerPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to start game",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const discardMutation = useMutation({
+    mutationFn: async ({ gameId, discardIndices }: { gameId: string; discardIndices: number[] }) => {
+      const response = await apiRequest("POST", "/api/poker/discard", { gameId, discardIndices });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/poker/current"] });
+      setSelectedDiscards([]);
+      if (data.bothSubmitted) {
+        toast({
+          title: "Cards Drawn!",
+          description: "Both players have drawn. Lock in your final hand!",
+        });
+      } else {
+        toast({
+          title: "Waiting...",
+          description: "Waiting for opponent to select discards.",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit discards",
         variant: "destructive",
       });
     },
@@ -200,6 +254,33 @@ export default function PokerPage() {
   const opponentHandRank = currentRound?.status === 'complete'
     ? (isPlayer1 ? currentRound.player2HandRank : currentRound.player1HandRank)
     : null;
+
+  // Discard phase tracking
+  const inDiscardPhase = currentRound?.status === 'dealing';
+  const inDrawnPhase = currentRound?.status === 'drawing';
+  
+  const myDiscardIndices = currentRound 
+    ? (isPlayer1 ? currentRound.player1DiscardIndices : currentRound.player2DiscardIndices)
+    : null;
+  const hasSubmittedDiscards = myDiscardIndices !== null;
+  
+  const opponentDiscardIndices = currentRound
+    ? (isPlayer1 ? currentRound.player2DiscardIndices : currentRound.player1DiscardIndices)
+    : null;
+  const opponentSubmittedDiscards = opponentDiscardIndices !== null;
+
+  const toggleDiscard = (index: number) => {
+    if (selectedDiscards.includes(index)) {
+      setSelectedDiscards(selectedDiscards.filter(i => i !== index));
+    } else if (selectedDiscards.length < 5) {
+      setSelectedDiscards([...selectedDiscards, index]);
+    }
+  };
+
+  // Reset selections when round changes
+  useEffect(() => {
+    setSelectedDiscards([]);
+  }, [currentRound?.id]);
 
   const availableOpponents = users.filter(u => u.id !== currentUser?.id);
 
@@ -346,7 +427,14 @@ export default function PokerPage() {
         <>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Your Hand</CardTitle>
+              <CardTitle className="text-lg">
+                Your Hand
+                {inDiscardPhase && !hasSubmittedDiscards && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    (Tap cards to discard: {selectedDiscards.length}/5)
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap justify-center gap-2 mb-4">
@@ -355,6 +443,9 @@ export default function PokerPage() {
                     key={index} 
                     card={card} 
                     isHighlighted={roundComplete && myBestHand.includes(card)}
+                    isSelected={selectedDiscards.includes(index)}
+                    isSelectable={inDiscardPhase && !hasSubmittedDiscards}
+                    onClick={() => toggleDiscard(index)}
                   />
                 ))}
               </div>
@@ -363,6 +454,26 @@ export default function PokerPage() {
                   <Badge variant="outline" className="text-lg px-4 py-1">
                     {myHandRank}
                   </Badge>
+                </div>
+              )}
+              {inDiscardPhase && !hasSubmittedDiscards && (
+                <div className="text-center mt-4">
+                  <Button
+                    onClick={() => discardMutation.mutate({ gameId: game.id, discardIndices: selectedDiscards })}
+                    disabled={discardMutation.isPending}
+                    data-testid="button-submit-discards"
+                  >
+                    {discardMutation.isPending 
+                      ? "Submitting..." 
+                      : selectedDiscards.length === 0 
+                        ? "Keep All Cards" 
+                        : `Discard ${selectedDiscards.length} Card${selectedDiscards.length > 1 ? 's' : ''}`}
+                  </Button>
+                </div>
+              )}
+              {inDiscardPhase && hasSubmittedDiscards && (
+                <div className="text-center text-muted-foreground">
+                  Waiting for opponent to select discards...
                 </div>
               )}
             </CardContent>
@@ -413,7 +524,7 @@ export default function PokerPage() {
                 </p>
               </CardContent>
             </Card>
-          ) : (
+          ) : inDrawnPhase ? (
             <Card>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between mb-4">
@@ -444,7 +555,7 @@ export default function PokerPage() {
                 </Button>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           {rounds.length > 1 && (
             <Card>

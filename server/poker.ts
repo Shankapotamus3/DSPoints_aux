@@ -72,12 +72,29 @@ export function shuffleDeck(deck: Card[], seed: string): Card[] {
   return shuffled;
 }
 
-export function dealCards(seed: string): { player1Cards: Card[], player2Cards: Card[] } {
+export function dealCards(seed: string): { player1Cards: Card[], player2Cards: Card[], remainingDeck: Card[] } {
   const deck = shuffleDeck(createDeck(), seed);
   return {
     player1Cards: deck.slice(0, 7),
-    player2Cards: deck.slice(7, 14)
+    player2Cards: deck.slice(7, 14),
+    remainingDeck: deck.slice(14)
   };
+}
+
+export function drawReplacementCards(
+  currentCards: Card[],
+  discardIndices: number[],
+  remainingDeck: Card[],
+  startIndex: number
+): Card[] {
+  const newCards = [...currentCards];
+  for (let i = 0; i < discardIndices.length; i++) {
+    const idx = discardIndices[i];
+    if (idx >= 0 && idx < 7 && startIndex + i < remainingDeck.length) {
+      newCards[idx] = remainingDeck[startIndex + i];
+    }
+  }
+  return newCards;
 }
 
 export function cardToString(card: Card): string {

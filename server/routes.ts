@@ -2059,6 +2059,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Player submits discard selection
+  app.post("/api/poker/discard", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req)!;
+      const { gameId, discardIndices } = req.body;
+
+      if (!Array.isArray(discardIndices) || discardIndices.length > 5) {
+        return res.status(400).json({ message: "Must discard 0-5 cards" });
+      }
+
+      // Validate indices are 0-6
+      for (const idx of discardIndices) {
+        if (typeof idx !== 'number' || idx < 0 || idx > 6) {
+          return res.status(400).json({ message: "Invalid card index" });
+        }
+      }
+
+      const game = await storage.getPokerGame(gameId);
+      if (!game || game.status !== 'active') {
+        return res.status(404).json({ message: "Game not found or not active" });
+      }
+
+      const isPlayer1 = game.player1Id === userId;
+      const isPlayer2 = game.player2Id === userId;
+      if (!isPlayer1 && !isPlayer2) {
+        return res.status(403).json({ message: "You are not a player in this game" });
+      }
+
+      const round = await storage.getCurrentPokerRound(gameId);
+      if (!round || round.status !== 'dealing') {
+        return res.status(400).json({ message: "Not in drawing phase" });
+      }
+
+      // Check if already submitted
+      const alreadySubmitted = isPlayer1 
+        ? round.player1DiscardIndices !== null 
+        : round.player2DiscardIndices !== null;
+      if (alreadySubmitted) {
+        return res.status(400).json({ message: "Already submitted discard selection" });
+      }
+
+      const updateData: any = {};
+      if (isPlayer1) {
+        updateData.player1DiscardIndices = JSON.stringify(discardIndices);
+      } else {
+        updateData.player2DiscardIndices = JSON.stringify(discardIndices);
+      }
+
+      await storage.updatePokerRound(round.id, updateData);
+
+      // Check if both players have submitted
+      const updatedRound = await storage.getPokerRound(round.id);
+      const p1Submitted = updatedRound!.player1DiscardIndices !== null;
+      const p2Submitted = updatedRound!.player2DiscardIndices !== null;
+
+      if (p1Submitted && p2Submitted) {
+        // Both submitted - draw new cards
+        const { dealCards, stringsToCards, cardsToStrings, drawReplacementCards } = await import('./poker.js');
+        
+        const { remainingDeck } = dealCards(updatedRound!.deckSeed);
+        
+        const p1Discards = JSON.parse(updatedRound!.player1DiscardIndices!) as number[];
+        const p2Discards = JSON.parse(updatedRound!.player2DiscardIndices!) as number[];
+        
+        const p1CurrentCards = stringsToCards(JSON.parse(updatedRound!.player1Cards));
+        const p2CurrentCards = stringsToCards(JSON.parse(updatedRound!.player2Cards));
+        
+        // Player 1 draws first, then player 2
+        const p1NewCards = drawReplacementCards(p1CurrentCards, p1Discards, remainingDeck, 0);
+        const p2NewCards = drawReplacementCards(p2CurrentCards, p2Discards, remainingDeck, p1Discards.length);
+        
+        await storage.updatePokerRound(round.id, {
+          status: 'drawing',
+          player1Cards: JSON.stringify(cardsToStrings(p1NewCards)),
+          player2Cards: JSON.stringify(cardsToStrings(p2NewCards)),
+        });
+      }
+
+      res.json({ success: true, bothSubmitted: p1Submitted && p2Submitted });
+    } catch (error) {
+      console.error("Error submitting discard:", error);
+      res.status(500).json({ message: "Failed to submit discard selection" });
+    }
+  });
+
   // Player indicates they are ready (locks in their hand)
   app.post("/api/poker/ready", requireAuth, async (req, res) => {
     try {
@@ -2079,6 +2164,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const round = await storage.getCurrentPokerRound(gameId);
       if (!round) {
         return res.status(404).json({ message: "No active round" });
+      }
+
+      // Must be in drawing phase to ready up
+      if (round.status !== 'drawing') {
+        return res.status(400).json({ message: "Complete drawing phase first" });
       }
 
       const updateData: any = {};
