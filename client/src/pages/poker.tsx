@@ -129,6 +129,8 @@ export default function PokerPage() {
     iWon: boolean;
     isTie: boolean;
   } | null>(null);
+  const [lastSeenRoundId, setLastSeenRoundId] = useState<string | null>(null);
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
 
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/user"],
@@ -176,9 +178,9 @@ export default function PokerPage() {
     onSuccess: (data) => {
       setSelectedDiscards([]);
       
-      if (data.roundComplete && data.currentRound) {
-        // Second player just finished - show results dialog
-        const round = data.currentRound;
+      if (data.roundComplete && data.previousRound) {
+        // Second player just finished - show results dialog using previousRound (the completed round)
+        const round = data.previousRound;
         const isP1 = game?.player1Id === currentUser?.id;
         
         const myHand = JSON.parse(isP1 ? round.player1Cards : round.player2Cards) as string[];
@@ -200,6 +202,7 @@ export default function PokerPage() {
         });
         setShowResultsDialog(true);
       } else if (data.firstPlayerDone) {
+        setWaitingForOpponent(true);
         toast({
           title: "Hand Locked In!",
           description: "Waiting for opponent to make their draw...",
@@ -327,6 +330,48 @@ export default function PokerPage() {
   useEffect(() => {
     setSelectedDiscards([]);
   }, [currentRound?.id]);
+
+  // Detect when round completes while first player was waiting (show them results via polling)
+  useEffect(() => {
+    if (!currentRound || !game || !currentUser) return;
+    
+    // Find the most recent completed round in the rounds list
+    const completedRounds = rounds.filter(r => r.status === 'complete');
+    const latestCompletedRound = completedRounds.length > 0 
+      ? completedRounds.reduce((a, b) => a.roundNumber > b.roundNumber ? a : b)
+      : null;
+    
+    // If we were waiting and there's a completed round we haven't seen yet, show results
+    if (waitingForOpponent && latestCompletedRound && latestCompletedRound.id !== lastSeenRoundId) {
+      const round = latestCompletedRound;
+      const isP1 = game.player1Id === currentUser.id;
+      
+      try {
+        const myHand = JSON.parse(isP1 ? round.player1Cards : round.player2Cards) as string[];
+        const myBestHand = JSON.parse(isP1 ? round.player1BestHand! : round.player2BestHand!) as string[];
+        const myHandRank = isP1 ? round.player1HandRank : round.player2HandRank;
+        const opponentHand = JSON.parse(isP1 ? round.player2Cards : round.player1Cards) as string[];
+        const opponentBestHand = JSON.parse(isP1 ? round.player2BestHand! : round.player1BestHand!) as string[];
+        const opponentHandRank = isP1 ? round.player2HandRank : round.player1HandRank;
+        
+        setPendingRoundResult({
+          myHand,
+          myBestHand,
+          myHandRank: myHandRank || 'Unknown',
+          opponentHand,
+          opponentBestHand,
+          opponentHandRank: opponentHandRank || 'Unknown',
+          iWon: round.winnerId === currentUser.id,
+          isTie: round.isTie,
+        });
+        setShowResultsDialog(true);
+        setLastSeenRoundId(round.id);
+        setWaitingForOpponent(false);
+      } catch (e) {
+        console.error('Error parsing round results:', e);
+      }
+    }
+  }, [rounds, waitingForOpponent, lastSeenRoundId, game, currentUser, currentRound]);
 
   const availableOpponents = users.filter(u => u.id !== currentUser?.id);
 
