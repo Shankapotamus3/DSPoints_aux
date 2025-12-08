@@ -45,21 +45,10 @@ export default function EditProfileModal({ open, onClose, user }: EditProfileMod
   
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<User>) => {
-      // If uploading a new image, handle avatar URL update
-      if (updates.avatarType === "image" && updates.avatarUrl) {
-        console.log("🖼️  Updating avatar with URL:", updates.avatarUrl);
-        const response = await apiRequest("PUT", `/api/users/${user.id}/avatar`, {
-          avatarUrl: updates.avatarUrl
-        });
-        const result = await response.json();
-        console.log("✅ Avatar update response:", result);
-        return result;
-      } else {
-        // Just update user fields
-        console.log("📝 Updating user profile:", updates);
-        const response = await apiRequest("PUT", `/api/users/${user.id}`, updates);
-        return response.json();
-      }
+      // Always update the user profile fields (displayName, avatar, avatarType, etc.)
+      console.log("📝 Updating user profile:", updates);
+      const response = await apiRequest("PUT", `/api/users/${user.id}`, updates);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
