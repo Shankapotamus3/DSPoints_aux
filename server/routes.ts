@@ -1959,11 +1959,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== POKER ROUTES ====================
 
-  // Temporary migration endpoint for Railway - adds firstPlayerId column
+  // Temporary migration endpoint for Railway - creates poker tables
   app.post("/api/poker/migrate", requireAuth, requireAdmin, async (req, res) => {
     try {
-      await db.execute(sql`ALTER TABLE poker_rounds ADD COLUMN IF NOT EXISTS first_player_id VARCHAR`);
-      res.json({ success: true, message: "Migration completed: first_player_id column added" });
+      // Create poker_games table if it doesn't exist
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS poker_games (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          player1_id VARCHAR NOT NULL REFERENCES users(id),
+          player2_id VARCHAR NOT NULL REFERENCES users(id),
+          status TEXT NOT NULL DEFAULT 'active',
+          player1_wins INTEGER NOT NULL DEFAULT 0,
+          player2_wins INTEGER NOT NULL DEFAULT 0,
+          current_round INTEGER NOT NULL DEFAULT 1,
+          winner_id VARCHAR REFERENCES users(id),
+          created_at TIMESTAMP NOT NULL DEFAULT now(),
+          completed_at TIMESTAMP
+        )
+      `);
+      
+      // Create poker_rounds table if it doesn't exist
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS poker_rounds (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          game_id VARCHAR NOT NULL REFERENCES poker_games(id),
+          round_number INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'first_player_turn',
+          first_player_id VARCHAR REFERENCES users(id),
+          deck_seed TEXT NOT NULL,
+          player1_cards TEXT NOT NULL DEFAULT '[]',
+          player2_cards TEXT NOT NULL DEFAULT '[]',
+          player1_discard_indices TEXT,
+          player2_discard_indices TEXT,
+          player1_ready BOOLEAN NOT NULL DEFAULT false,
+          player2_ready BOOLEAN NOT NULL DEFAULT false,
+          player1_best_hand TEXT,
+          player2_best_hand TEXT,
+          player1_hand_rank TEXT,
+          player2_hand_rank TEXT,
+          winner_id VARCHAR REFERENCES users(id),
+          is_tie BOOLEAN NOT NULL DEFAULT false,
+          created_at TIMESTAMP NOT NULL DEFAULT now(),
+          completed_at TIMESTAMP
+        )
+      `);
+      
+      // Also try to add first_player_id column if table exists but column doesn't
+      try {
+        await db.execute(sql`ALTER TABLE poker_rounds ADD COLUMN IF NOT EXISTS first_player_id VARCHAR REFERENCES users(id)`);
+      } catch (e) {
+        // Ignore if column already exists
+      }
+      
+      res.json({ success: true, message: "Migration completed: poker tables created" });
     } catch (error: any) {
       console.error("Migration error:", error);
       res.status(500).json({ message: error.message || "Migration failed" });
