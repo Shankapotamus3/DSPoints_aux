@@ -92,8 +92,8 @@ export default function Rewards() {
           </div>
         </div>
 
-        {/* Lottery Section */}
-        <LotterySection />
+        {/* Lottery Section - hidden for now, can re-enable later */}
+        {/* <LotterySection /> */}
 
         <Tabs defaultValue="available" className="space-y-6 mt-8">
           <TabsList className="grid w-full grid-cols-2">
