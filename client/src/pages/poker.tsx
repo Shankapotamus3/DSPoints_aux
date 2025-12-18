@@ -406,38 +406,6 @@ export default function PokerPage() {
               </ul>
             </div>
 
-            {/* Admin-only migration button for Railway */}
-            {currentUser?.isAdmin && (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-2">
-                  Database migration needed? Click below to add required columns.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/poker/migrate', {
-                        method: 'POST',
-                        credentials: 'include',
-                      });
-                      const data = await response.json();
-                      if (response.ok) {
-                        toast({ title: "Migration Complete", description: data.message });
-                      } else {
-                        toast({ title: "Migration Failed", description: data.message, variant: "destructive" });
-                      }
-                    } catch (e: any) {
-                      toast({ title: "Error", description: e.message, variant: "destructive" });
-                    }
-                  }}
-                  data-testid="button-poker-migrate"
-                >
-                  Run Database Migration
-                </Button>
-              </div>
-            )}
-
             <div className="space-y-4">
               <label className="text-sm font-medium">Select Opponent</label>
               <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
