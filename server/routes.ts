@@ -1616,6 +1616,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // YAHTZEE GAME ROUTES
 
+  // Temporary migration endpoint for Railway - creates yahtzee tables
+  app.post("/api/yahtzee/migrate", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS yahtzee_games (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          player1_id VARCHAR NOT NULL REFERENCES users(id),
+          player2_id VARCHAR NOT NULL REFERENCES users(id),
+          current_player_id VARCHAR NOT NULL REFERENCES users(id),
+          status TEXT NOT NULL DEFAULT 'active',
+          dice TEXT NOT NULL DEFAULT '[]',
+          held_dice TEXT NOT NULL DEFAULT '[false,false,false,false,false]',
+          rolls_remaining INTEGER NOT NULL DEFAULT 3,
+          player1_scorecard TEXT NOT NULL,
+          player2_scorecard TEXT NOT NULL,
+          player1_yahtzee_bonus INTEGER NOT NULL DEFAULT 0,
+          player2_yahtzee_bonus INTEGER NOT NULL DEFAULT 0,
+          winner_id VARCHAR REFERENCES users(id),
+          player1_final_score INTEGER,
+          player2_final_score INTEGER,
+          created_at TIMESTAMP NOT NULL DEFAULT now(),
+          completed_at TIMESTAMP
+        )
+      `);
+      
+      res.json({ success: true, message: "Migration completed: yahtzee_games table created" });
+    } catch (error: any) {
+      console.error("Yahtzee migration error:", error);
+      res.status(500).json({ message: error.message || "Migration failed" });
+    }
+  });
+
   // Get current active game
   app.get("/api/yahtzee/current", requireAuth, async (req, res) => {
     try {
