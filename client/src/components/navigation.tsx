@@ -8,7 +8,7 @@ const navItems = [
   { path: "/yahtzee", label: "Yahtzee", icon: Trophy },
   { path: "/poker", label: "Poker", icon: Spade },
   { path: "/messages", label: "Messages", icon: MessageCircle },
-  { path: "/punishments", label: "Punishments", icon: Dices },
+  // { path: "/punishments", label: "Punishments", icon: Dices }, // Hidden for now - can re-enable later
   { path: "/family", label: "Family", icon: Users },
   { path: "/history", label: "History", icon: History },
 ];
