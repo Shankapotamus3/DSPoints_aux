@@ -550,6 +550,8 @@ export class DatabaseStorage implements IStorage {
         now.setMonth(now.getMonth() + 1);
         break;
     }
+    // Set time to 12:01 AM MST (07:01 UTC) so chores become available at midnight MST
+    now.setUTCHours(7, 1, 0, 0);
     return now;
   }
 
