@@ -129,8 +129,8 @@ export default function PokerPage() {
     iWon: boolean;
     isTie: boolean;
   } | null>(null);
-  const [lastSeenRoundId, setLastSeenRoundId] = useState<string | null>(null);
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [lastSeenRoundNumber, setLastSeenRoundNumber] = useState<number>(0);
+  const [waitingForRoundNumber, setWaitingForRoundNumber] = useState<number | null>(null);
 
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/user"],
@@ -201,8 +201,10 @@ export default function PokerPage() {
           isTie: round.isTie,
         });
         setShowResultsDialog(true);
-      } else if (data.firstPlayerDone) {
-        setWaitingForOpponent(true);
+        setLastSeenRoundNumber(round.roundNumber);
+      } else if (data.firstPlayerDone && data.currentRound) {
+        // Track which round number we're waiting for
+        setWaitingForRoundNumber(data.currentRound.roundNumber);
         toast({
           title: "Hand Locked In!",
           description: "Waiting for opponent to make their draw...",
@@ -333,17 +335,17 @@ export default function PokerPage() {
 
   // Detect when round completes while first player was waiting (show them results via polling)
   useEffect(() => {
-    if (!currentRound || !game || !currentUser) return;
+    if (!game || !currentUser || waitingForRoundNumber === null) return;
     
-    // Find the most recent completed round in the rounds list
-    const completedRounds = rounds.filter(r => r.status === 'complete');
-    const latestCompletedRound = completedRounds.length > 0 
-      ? completedRounds.reduce((a, b) => a.roundNumber > b.roundNumber ? a : b)
-      : null;
+    // Find the specific round we're waiting for
+    const completedRound = rounds.find(r => 
+      r.status === 'complete' && 
+      r.roundNumber === waitingForRoundNumber &&
+      r.roundNumber > lastSeenRoundNumber
+    );
     
-    // If we were waiting and there's a completed round we haven't seen yet, show results
-    if (waitingForOpponent && latestCompletedRound && latestCompletedRound.id !== lastSeenRoundId) {
-      const round = latestCompletedRound;
+    if (completedRound) {
+      const round = completedRound;
       const isP1 = game.player1Id === currentUser.id;
       
       try {
@@ -365,13 +367,13 @@ export default function PokerPage() {
           isTie: round.isTie,
         });
         setShowResultsDialog(true);
-        setLastSeenRoundId(round.id);
-        setWaitingForOpponent(false);
+        setLastSeenRoundNumber(round.roundNumber);
+        setWaitingForRoundNumber(null);
       } catch (e) {
         console.error('Error parsing round results:', e);
       }
     }
-  }, [rounds, waitingForOpponent, lastSeenRoundId, game, currentUser, currentRound]);
+  }, [rounds, waitingForRoundNumber, lastSeenRoundNumber, game, currentUser]);
 
   const availableOpponents = users.filter(u => u.id !== currentUser?.id);
 
