@@ -51,6 +51,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   updateUserPoints(id: string, points: number): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   
   // Chore methods
   getChores(): Promise<Chore[]>;
@@ -180,6 +181,50 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    // Delete all related data first to avoid foreign key constraint violations
+    // Delete assigned lines
+    await db.delete(assignedLines).where(
+      or(eq(assignedLines.userId, id), eq(assignedLines.assignedById, id))
+    );
+    // Delete push subscriptions
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, id));
+    // Delete lottery tickets
+    await db.delete(lotteryTickets).where(eq(lotteryTickets.userId, id));
+    // Delete transactions
+    await db.delete(transactions).where(eq(transactions.userId, id));
+    // Delete messages (both sent and received)
+    await db.delete(messages).where(
+      or(eq(messages.senderId, id), eq(messages.recipientId, id))
+    );
+    // Delete notifications
+    await db.delete(notifications).where(eq(notifications.userId, id));
+    // Delete punishments
+    await db.delete(punishments).where(eq(punishments.userId, id));
+    // Delete Yahtzee games (check both player slots)
+    await db.delete(yahtzeeGames).where(
+      or(eq(yahtzeeGames.player1Id, id), eq(yahtzeeGames.player2Id, id))
+    );
+    // Handle poker games - delete rounds first, then games
+    const userPokerGames = await db.select().from(pokerGames).where(
+      or(eq(pokerGames.player1Id, id), eq(pokerGames.player2Id, id))
+    );
+    for (const game of userPokerGames) {
+      await db.delete(pokerRounds).where(eq(pokerRounds.gameId, game.id));
+    }
+    await db.delete(pokerGames).where(
+      or(eq(pokerGames.player1Id, id), eq(pokerGames.player2Id, id))
+    );
+    // Clear chore assignments (don't delete chores, just unassign)
+    await db.update(chores).set({ assignedToId: null }).where(eq(chores.assignedToId, id));
+    await db.update(chores).set({ completedById: null }).where(eq(chores.completedById, id));
+    await db.update(chores).set({ approvedById: null }).where(eq(chores.approvedById, id));
+    
+    // Now delete the user
+    const result = await db.delete(users).where(eq(users.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Chore methods

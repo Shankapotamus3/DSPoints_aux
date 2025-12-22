@@ -556,6 +556,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user (admin only)
+  app.delete("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.session.userId!;
+
+      // Prevent admin from deleting themselves
+      if (id === currentUserId) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      // Get the target user
+      const targetUser = await storage.getUser(id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Safety check: prevent deleting the last admin
+      if (targetUser.isAdmin) {
+        const allUsers = await storage.getUsers();
+        const adminCount = allUsers.filter(u => u.isAdmin).length;
+        
+        if (adminCount <= 1) {
+          return res.status(400).json({ message: "Cannot delete the last admin" });
+        }
+      }
+
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Chore routes
   app.get("/api/chores", async (req, res) => {
     try {
