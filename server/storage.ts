@@ -23,6 +23,8 @@ import {
   type InsertPokerGame,
   type PokerRound,
   type InsertPokerRound,
+  type AssignedLine,
+  type InsertAssignedLine,
   type ChoreStatus,
   users,
   chores,
@@ -35,7 +37,8 @@ import {
   lotteryTickets,
   yahtzeeGames,
   pokerGames,
-  pokerRounds
+  pokerRounds,
+  assignedLines
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, or, and, desc, lte } from "drizzle-orm";
@@ -126,6 +129,15 @@ export interface IStorage {
   getCurrentPokerRound(gameId: string): Promise<PokerRound | undefined>;
   createPokerRound(round: InsertPokerRound): Promise<PokerRound>;
   updatePokerRound(id: string, updates: Partial<PokerRound>): Promise<PokerRound | undefined>;
+
+  // Assigned lines methods
+  getAssignedLines(userId: string): Promise<AssignedLine[]>;
+  getAllAssignedLines(): Promise<AssignedLine[]>;
+  getAssignedLine(id: string): Promise<AssignedLine | undefined>;
+  createAssignedLine(line: InsertAssignedLine): Promise<AssignedLine>;
+  updateAssignedLine(id: string, updates: Partial<AssignedLine>): Promise<AssignedLine | undefined>;
+  incrementLineProgress(id: string): Promise<AssignedLine | undefined>;
+  deleteAssignedLine(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -723,6 +735,71 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pokerRounds.id, id))
       .returning();
     return round || undefined;
+  }
+
+  // Assigned lines methods
+  async getAssignedLines(userId: string): Promise<AssignedLine[]> {
+    return await db
+      .select()
+      .from(assignedLines)
+      .where(eq(assignedLines.userId, userId))
+      .orderBy(desc(assignedLines.createdAt));
+  }
+
+  async getAllAssignedLines(): Promise<AssignedLine[]> {
+    return await db
+      .select()
+      .from(assignedLines)
+      .orderBy(desc(assignedLines.createdAt));
+  }
+
+  async getAssignedLine(id: string): Promise<AssignedLine | undefined> {
+    const [line] = await db
+      .select()
+      .from(assignedLines)
+      .where(eq(assignedLines.id, id));
+    return line || undefined;
+  }
+
+  async createAssignedLine(line: InsertAssignedLine): Promise<AssignedLine> {
+    const [assignedLine] = await db
+      .insert(assignedLines)
+      .values(line)
+      .returning();
+    return assignedLine;
+  }
+
+  async updateAssignedLine(id: string, updates: Partial<AssignedLine>): Promise<AssignedLine | undefined> {
+    const [line] = await db
+      .update(assignedLines)
+      .set(updates)
+      .where(eq(assignedLines.id, id))
+      .returning();
+    return line || undefined;
+  }
+
+  async incrementLineProgress(id: string): Promise<AssignedLine | undefined> {
+    const existingLine = await this.getAssignedLine(id);
+    if (!existingLine) return undefined;
+
+    const newCount = existingLine.completedCount + 1;
+    const isCompleted = newCount >= existingLine.requiredCount;
+
+    const [line] = await db
+      .update(assignedLines)
+      .set({ 
+        completedCount: newCount,
+        isCompleted,
+        completedAt: isCompleted ? new Date() : null
+      })
+      .where(eq(assignedLines.id, id))
+      .returning();
+    return line || undefined;
+  }
+
+  async deleteAssignedLine(id: string): Promise<boolean> {
+    const result = await db.delete(assignedLines).where(eq(assignedLines.id, id)).returning();
+    return result.length > 0;
   }
 }
 

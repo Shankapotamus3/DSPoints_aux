@@ -166,6 +166,18 @@ export const pokerRounds = pgTable("poker_rounds", {
   completedAt: timestamp("completed_at"),
 });
 
+export const assignedLines = pgTable("assigned_lines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  assignedById: varchar("assigned_by_id").notNull().references(() => users.id),
+  lineText: text("line_text").notNull(),
+  requiredCount: integer("required_count").notNull(),
+  completedCount: integer("completed_count").notNull().default(0),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   points: true,
@@ -272,6 +284,14 @@ export const insertPokerRoundSchema = createInsertSchema(pokerRounds).omit({
   completedAt: true,
 });
 
+export const insertAssignedLineSchema = createInsertSchema(assignedLines).omit({
+  id: true,
+  completedCount: true,
+  isCompleted: true,
+  completedAt: true,
+  createdAt: true,
+});
+
 export const choreApprovalSchema = z.object({
   comment: z.string().optional(),
 });
@@ -322,6 +342,8 @@ export type InsertPokerGame = z.infer<typeof insertPokerGameSchema>;
 export type PokerGame = typeof pokerGames.$inferSelect;
 export type InsertPokerRound = z.infer<typeof insertPokerRoundSchema>;
 export type PokerRound = typeof pokerRounds.$inferSelect;
+export type InsertAssignedLine = z.infer<typeof insertAssignedLineSchema>;
+export type AssignedLine = typeof assignedLines.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
 export type PointAdjustment = z.infer<typeof pointAdjustmentSchema>;
 export type ChoreCompletion = z.infer<typeof choreCompletionSchema>;
