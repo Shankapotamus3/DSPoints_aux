@@ -16,6 +16,7 @@ const Yahtzee = lazy(() => import("./pages/yahtzee"));
 const Poker = lazy(() => import("./pages/poker"));
 const Messages = lazy(() => import("./pages/messages"));
 const Punishments = lazy(() => import("./pages/punishments"));
+const Lines = lazy(() => import("./pages/lines"));
 const Family = lazy(() => import("./pages/family"));
 const History = lazy(() => import("./pages/history"));
 const PushTest = lazy(() => import("./pages/push-test"));
@@ -85,6 +86,9 @@ function Router() {
       </Route>
       <Route path="/punishments">
         {() => <ProtectedRoute component={Punishments} />}
+      </Route>
+      <Route path="/lines">
+        {() => <ProtectedRoute component={Lines} />}
       </Route>
       <Route path="/family">
         {() => <ProtectedRoute component={Family} />}

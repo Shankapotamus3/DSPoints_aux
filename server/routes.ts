@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema, choreApprovalSchema, insertMessageSchema, insertPunishmentSchema, insertPushSubscriptionSchema, pointAdjustmentSchema, choreCompletionSchema } from "@shared/schema";
+import { insertChoreSchema, insertRewardSchema, insertTransactionSchema, insertUserSchema, choreApprovalSchema, insertMessageSchema, insertPunishmentSchema, insertPushSubscriptionSchema, pointAdjustmentSchema, choreCompletionSchema, insertAssignedLineSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { shouldUseCloudinary, getCloudinaryUploadSignature, isCloudinaryConfigured } from "./cloudinaryStorage";
 import { z } from "zod";
@@ -2680,6 +2680,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting poker games:", error);
       res.status(500).json({ message: "Failed to get games" });
+    }
+  });
+
+  // Assigned Lines Routes
+  
+  // Get all assigned lines (admin only)
+  app.get("/api/lines", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req)!;
+      const isAdmin = await checkAdminPermission(req);
+      
+      if (isAdmin) {
+        const lines = await storage.getAllAssignedLines();
+        res.json(lines);
+      } else {
+        const lines = await storage.getAssignedLines(userId);
+        res.json(lines);
+      }
+    } catch (error) {
+      console.error("Error getting assigned lines:", error);
+      res.status(500).json({ message: "Failed to get assigned lines" });
+    }
+  });
+
+  // Get assigned lines for current user
+  app.get("/api/lines/my", requireAuth, async (req, res) => {
+    try {
+      const userId = getCurrentUserId(req)!;
+      const lines = await storage.getAssignedLines(userId);
+      res.json(lines);
+    } catch (error) {
+      console.error("Error getting assigned lines:", error);
+      res.status(500).json({ message: "Failed to get assigned lines" });
+    }
+  });
+
+  // Get specific assigned line
+  app.get("/api/lines/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = getCurrentUserId(req)!;
+      const line = await storage.getAssignedLine(id);
+      
+      if (!line) {
+        return res.status(404).json({ message: "Assigned line not found" });
+      }
+
+      // Check if user has access (owner or admin)
+      const isAdmin = await checkAdminPermission(req);
+      if (line.userId !== userId && !isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(line);
+    } catch (error) {
+      console.error("Error getting assigned line:", error);
+      res.status(500).json({ message: "Failed to get assigned line" });
+    }
+  });
+
+  // Create assigned line (admin only)
+  app.post("/api/lines", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const currentUserId = getCurrentUserId(req)!;
+      const lineData = insertAssignedLineSchema.parse({
+        ...req.body,
+        assignedById: currentUserId,
+      });
+      
+      const line = await storage.createAssignedLine(lineData);
+
+      // Send notification to assigned user
+      const assignedUser = await storage.getUser(lineData.userId);
+      const assigner = await storage.getUser(currentUserId);
+      if (assignedUser) {
+        await sendNotification(
+          lineData.userId,
+          "Lines Assigned",
+          `${assigner?.displayName || 'An admin'} assigned you to write "${lineData.lineText}" ${lineData.requiredCount} times.`,
+          "lines_assigned"
+        );
+      }
+
+      res.status(201).json(line);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid line data", errors: error.errors });
+      }
+      console.error("Error creating assigned line:", error);
+      res.status(500).json({ message: "Failed to create assigned line" });
+    }
+  });
+
+  // Increment progress on a line (user completing a line entry)
+  app.post("/api/lines/:id/progress", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = getCurrentUserId(req)!;
+      
+      const line = await storage.getAssignedLine(id);
+      if (!line) {
+        return res.status(404).json({ message: "Assigned line not found" });
+      }
+
+      // Only the assigned user can update their progress
+      if (line.userId !== userId) {
+        return res.status(403).json({ message: "Only the assigned user can update progress" });
+      }
+
+      if (line.isCompleted) {
+        return res.status(400).json({ message: "This line assignment is already completed" });
+      }
+
+      const updatedLine = await storage.incrementLineProgress(id);
+      
+      // If just completed, send notification to admin
+      if (updatedLine && updatedLine.isCompleted) {
+        const assignedByUser = await storage.getUser(line.assignedById);
+        const completedUser = await storage.getUser(userId);
+        if (assignedByUser) {
+          await sendNotification(
+            line.assignedById,
+            "Lines Completed",
+            `${completedUser?.displayName || 'A user'} has finished writing "${line.lineText}" ${line.requiredCount} times.`,
+            "lines_completed"
+          );
+        }
+      }
+
+      res.json(updatedLine);
+    } catch (error) {
+      console.error("Error updating line progress:", error);
+      res.status(500).json({ message: "Failed to update progress" });
+    }
+  });
+
+  // Delete assigned line (admin only)
+  app.delete("/api/lines/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteAssignedLine(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Assigned line not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting assigned line:", error);
+      res.status(500).json({ message: "Failed to delete assigned line" });
     }
   });
 

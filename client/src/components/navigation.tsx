@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { CheckSquare, Gift, History, Users, MessageCircle, Dices, Trophy, Spade } from "lucide-react";
+import { CheckSquare, Gift, History, Users, MessageCircle, Dices, Trophy, Spade, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -8,7 +8,7 @@ const navItems = [
   { path: "/yahtzee", label: "Yahtzee", icon: Trophy },
   { path: "/poker", label: "Poker", icon: Spade },
   { path: "/messages", label: "Messages", icon: MessageCircle },
-  // { path: "/punishments", label: "Punishments", icon: Dices }, // Hidden for now - can re-enable later
+  { path: "/lines", label: "Lines", icon: PenLine },
   { path: "/family", label: "Family", icon: Users },
   { path: "/history", label: "History", icon: History },
 ];
