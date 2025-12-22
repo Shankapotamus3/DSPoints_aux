@@ -231,6 +231,26 @@ function TypingInterface({
   const [showError, setShowError] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    
+    const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('paste', handlePaste, true);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('paste', handlePaste, true);
+    };
+  }, []);
+
   const progressMutation = useMutation({
     mutationFn: async (lineId: string) => {
       const response = await apiRequest("POST", `/api/lines/${lineId}/progress`, {});
@@ -264,7 +284,9 @@ function TypingInterface({
 
   const handleKeyPress = (key: string) => {
     setShowError(false);
-    setTypedText((prev) => prev + key);
+    if (typedText.length < line.lineText.length + 10) {
+      setTypedText((prev) => prev + key);
+    }
   };
 
   const handleBackspace = () => {
@@ -273,7 +295,10 @@ function TypingInterface({
   };
 
   const handleSubmit = () => {
-    if (typedText === line.lineText) {
+    const trimmedTyped = typedText.trimEnd();
+    const trimmedTarget = line.lineText.trimEnd();
+    
+    if (trimmedTyped === trimmedTarget) {
       progressMutation.mutate(line.id);
     } else {
       setShowError(true);
@@ -300,14 +325,15 @@ function TypingInterface({
         </div>
       </div>
 
-      <div className="p-4 bg-muted rounded-lg">
+      <div className="p-4 bg-muted rounded-lg select-none">
         <p className="text-sm text-muted-foreground mb-2">Type this line:</p>
         <p className="text-lg font-medium break-words" data-testid="target-line">{line.lineText}</p>
       </div>
 
       <div 
-        className={`p-4 rounded-lg border-2 min-h-[80px] ${showError ? 'border-destructive bg-destructive/10' : 'border-border bg-background'}`}
+        className={`p-4 rounded-lg border-2 min-h-[80px] select-none ${showError ? 'border-destructive bg-destructive/10' : 'border-border bg-background'}`}
         data-testid="typing-area"
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div className="flex flex-wrap font-mono text-lg">
           {line.lineText.split('').map((char, index) => (
