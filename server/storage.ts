@@ -280,6 +280,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteChore(id: string): Promise<boolean> {
+    await db.delete(notifications).where(eq(notifications.choreId, id));
     const result = await db.delete(chores).where(eq(chores.id, id));
     return (result.rowCount ?? 0) > 0;
   }

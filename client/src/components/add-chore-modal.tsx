@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,33 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
     assignedToId: editChore?.assignedToId || undefined,
     voiceMessageId: editChore?.voiceMessageId || undefined,
   });
-  
+
+  useEffect(() => {
+    if (editChore) {
+      setFormData({
+        name: editChore.name,
+        description: editChore.description || "",
+        points: editChore.points,
+        estimatedTime: editChore.estimatedTime || "",
+        isRecurring: editChore.isRecurring,
+        recurringType: (editChore.recurringType as 'daily' | 'weekly' | 'monthly') || undefined,
+        assignedToId: editChore.assignedToId || undefined,
+        voiceMessageId: editChore.voiceMessageId || undefined,
+      });
+    } else {
+      setFormData({
+        name: "",
+        description: "",
+        points: 50,
+        estimatedTime: "",
+        isRecurring: false,
+        recurringType: undefined,
+        assignedToId: undefined,
+        voiceMessageId: undefined,
+      });
+    }
+  }, [editChore]);
+
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
