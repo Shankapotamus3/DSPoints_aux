@@ -1,7 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { prewarmDatabase, startKeepAlive } from "./db";
+import { prewarmDatabase, startKeepAlive, db } from "./db";
+import { sql } from "drizzle-orm";
 
 const app = express();
 app.use(express.json());
@@ -46,7 +47,25 @@ app.use((req, res, next) => {
     // Prewarm database connection BEFORE routes to avoid cold start delays
     await prewarmDatabase();
     startKeepAlive();
-    
+
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS voice_messages (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          audio_url TEXT NOT NULL,
+          created_by_id VARCHAR NOT NULL REFERENCES users(id),
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMP NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`
+        ALTER TABLE chores ADD COLUMN IF NOT EXISTS voice_message_id VARCHAR
+      `);
+    } catch (e) {
+      console.warn("⚠️ Voice messages table auto-migration skipped:", (e as Error).message);
+    }
+
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -38,7 +38,14 @@ export default function CompleteChoreDialog({ open, onClose, chore }: CompleteCh
   const playCompletionAudio = () => {
     if (chore.voiceMessageId === null) return;
     if (!chore.voiceMessageId) return;
-    const msg = voiceMessages.find((m) => m.id === chore.voiceMessageId);
+
+    let msg;
+    if (chore.voiceMessageId === "random" && voiceMessages.length > 0) {
+      msg = voiceMessages[Math.floor(Math.random() * voiceMessages.length)];
+    } else {
+      msg = voiceMessages.find((m) => m.id === chore.voiceMessageId);
+    }
+
     if (msg?.audioUrl) {
       try {
         const audio = new Audio(msg.audioUrl);

@@ -2877,9 +2877,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messages = await storage.getAllVoiceMessages();
       res.json(messages);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === '42P01') {
+        res.json([]);
+        return;
+      }
       console.error("Error getting voice messages:", error);
       res.status(500).json({ message: "Failed to get voice messages" });
+    }
+  });
+
+  app.post("/api/voice-messages/migrate", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS voice_messages (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          audio_url TEXT NOT NULL,
+          created_by_id VARCHAR NOT NULL REFERENCES users(id),
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMP NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`
+        ALTER TABLE chores ADD COLUMN IF NOT EXISTS voice_message_id VARCHAR
+      `);
+      res.json({ success: true, message: "Migration completed: voice_messages table created" });
+    } catch (error: any) {
+      console.error("Voice messages migration error:", error);
+      res.status(500).json({ message: error.message || "Migration failed" });
     }
   });
 

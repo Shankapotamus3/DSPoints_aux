@@ -222,6 +222,7 @@ export const insertChoreSchema = createInsertSchema(chores).omit({
   approvedById: true,
 }).extend({
   recurringType: z.enum(['daily', 'weekly', 'monthly']).optional(),
+  voiceMessageId: z.string().nullish(),
 });
 
 export const insertRewardSchema = createInsertSchema(rewards).omit({

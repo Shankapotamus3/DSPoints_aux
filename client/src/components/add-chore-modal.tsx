@@ -210,6 +210,9 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
               <SelectContent>
                 <SelectItem value="default">Default (no sound)</SelectItem>
                 <SelectItem value="none">No sound</SelectItem>
+                {voiceMessages.length > 0 && (
+                  <SelectItem value="random">Random</SelectItem>
+                )}
                 {voiceMessages.map(msg => (
                   <SelectItem key={msg.id} value={msg.id}>
                     {msg.name}
@@ -218,7 +221,7 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              Pick a voice message to play when this chore is completed
+              Pick a voice message to play when this chore is completed. "Random" picks a different one each time.
             </p>
           </div>
 
