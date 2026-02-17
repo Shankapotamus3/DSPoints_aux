@@ -2885,9 +2885,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/voice-message/upload-url", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL, storageType: 'replit' });
+      if (shouldUseCloudinary()) {
+        const cloudinaryParams = await getCloudinaryUploadSignature('voice-messages');
+        res.json({
+          uploadURL: `https://api.cloudinary.com/v1_1/${cloudinaryParams.cloudName}/auto/upload`,
+          cloudinaryParams,
+          storageType: 'cloudinary',
+        });
+      } else {
+        const objectStorageService = new ObjectStorageService();
+        const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+        res.json({ uploadURL, storageType: 'replit' });
+      }
     } catch (error) {
       console.error("Error getting voice message upload URL:", error);
       res.status(500).json({ message: "Failed to get upload URL" });
@@ -2897,21 +2906,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice-message", requireAuth, requireAdmin, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { objectPath, name } = req.body;
+      const { objectPath, audioUrl: directUrl, name } = req.body;
 
-      if (!objectPath || !name) {
-        return res.status(400).json({ message: "objectPath and name are required" });
+      if (!name) {
+        return res.status(400).json({ message: "name is required" });
       }
 
-      const objectStorageService = new ObjectStorageService();
-      const finalPath = await objectStorageService.trySetObjectEntityAclPolicy(
-        objectPath,
-        { owner: userId, visibility: "public" }
-      );
+      let finalAudioUrl: string;
+
+      if (directUrl) {
+        finalAudioUrl = directUrl;
+      } else if (objectPath) {
+        const objectStorageService = new ObjectStorageService();
+        finalAudioUrl = await objectStorageService.trySetObjectEntityAclPolicy(
+          objectPath,
+          { owner: userId, visibility: "public" }
+        );
+      } else {
+        return res.status(400).json({ message: "objectPath or audioUrl is required" });
+      }
 
       const message = await storage.createVoiceMessage({
         name,
-        audioUrl: finalPath,
+        audioUrl: finalAudioUrl,
         createdById: userId,
       });
 

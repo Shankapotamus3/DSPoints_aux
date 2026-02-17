@@ -88,23 +88,38 @@ export default function VoiceRecorder() {
       if (!recordingName.trim()) throw new Error("Name is required");
 
       const urlRes = await apiRequest("GET", "/api/voice-message/upload-url");
-      const { uploadURL } = await urlRes.json();
+      const { uploadURL, cloudinaryParams, storageType } = await urlRes.json();
 
-      const uploadRes = await fetch(uploadURL, {
-        method: "PUT",
-        body: recordedBlob,
-        headers: { "Content-Type": "audio/webm" },
-      });
+      let saveBody: Record<string, string>;
 
-      if (!uploadRes.ok) throw new Error("Upload failed");
+      if (storageType === "cloudinary" && cloudinaryParams) {
+        const formData = new FormData();
+        formData.append("file", recordedBlob);
+        formData.append("api_key", cloudinaryParams.apiKey);
+        formData.append("timestamp", cloudinaryParams.timestamp.toString());
+        formData.append("signature", cloudinaryParams.signature);
+        formData.append("folder", cloudinaryParams.folder);
 
-      const urlObj = new URL(uploadURL);
-      const objectPath = urlObj.origin + urlObj.pathname;
+        const uploadRes = await fetch(uploadURL, {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        const result = await uploadRes.json();
+        saveBody = { audioUrl: result.secure_url, name: recordingName.trim() };
+      } else {
+        const uploadRes = await fetch(uploadURL, {
+          method: "PUT",
+          body: recordedBlob,
+          headers: { "Content-Type": "audio/webm" },
+        });
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        const urlObj = new URL(uploadURL);
+        const objectPath = urlObj.origin + urlObj.pathname;
+        saveBody = { objectPath, name: recordingName.trim() };
+      }
 
-      const saveRes = await apiRequest("POST", "/api/voice-message", {
-        objectPath,
-        name: recordingName.trim(),
-      });
+      const saveRes = await apiRequest("POST", "/api/voice-message", saveBody);
       return saveRes.json();
     },
     onSuccess: () => {
