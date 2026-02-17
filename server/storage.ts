@@ -145,7 +145,10 @@ export interface IStorage {
 
   // Voice message methods
   getActiveVoiceMessage(): Promise<VoiceMessage | undefined>;
+  getAllVoiceMessages(): Promise<VoiceMessage[]>;
+  getVoiceMessage(id: string): Promise<VoiceMessage | undefined>;
   createVoiceMessage(message: InsertVoiceMessage): Promise<VoiceMessage>;
+  updateVoiceMessage(id: string, updates: Partial<VoiceMessage>): Promise<VoiceMessage | undefined>;
   deleteVoiceMessage(id: string): Promise<boolean>;
 }
 
@@ -225,6 +228,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(pokerGames).where(
       or(eq(pokerGames.player1Id, id), eq(pokerGames.player2Id, id))
     );
+    // Clear voice message assignments from chores before deleting voice messages
+    const userVoiceMessages = await db.select({ id: voiceMessages.id }).from(voiceMessages).where(eq(voiceMessages.createdById, id));
+    for (const vm of userVoiceMessages) {
+      await db.update(chores).set({ voiceMessageId: null }).where(eq(chores.voiceMessageId, vm.id));
+    }
     // Delete voice messages
     await db.delete(voiceMessages).where(eq(voiceMessages.createdById, id));
     // Clear chore assignments (don't delete chores, just unassign)
@@ -866,13 +874,27 @@ export class DatabaseStorage implements IStorage {
     return message || undefined;
   }
 
+  async getAllVoiceMessages(): Promise<VoiceMessage[]> {
+    return db.select().from(voiceMessages).orderBy(desc(voiceMessages.createdAt));
+  }
+
+  async getVoiceMessage(id: string): Promise<VoiceMessage | undefined> {
+    const [message] = await db.select().from(voiceMessages).where(eq(voiceMessages.id, id));
+    return message || undefined;
+  }
+
   async createVoiceMessage(insertMessage: InsertVoiceMessage): Promise<VoiceMessage> {
-    await db.update(voiceMessages).set({ isActive: false }).where(eq(voiceMessages.isActive, true));
     const [message] = await db.insert(voiceMessages).values(insertMessage).returning();
     return message;
   }
 
+  async updateVoiceMessage(id: string, updates: Partial<VoiceMessage>): Promise<VoiceMessage | undefined> {
+    const [message] = await db.update(voiceMessages).set(updates).where(eq(voiceMessages.id, id)).returning();
+    return message || undefined;
+  }
+
   async deleteVoiceMessage(id: string): Promise<boolean> {
+    await db.update(chores).set({ voiceMessageId: null }).where(eq(chores.voiceMessageId, id));
     const result = await db.delete(voiceMessages).where(eq(voiceMessages.id, id));
     return (result.rowCount ?? 0) > 0;
   }

@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Database Schema Design
 - **Users**: Store user credentials and point balance
-- **Chores**: Task management with completion tracking, point values, timestamps, and assignment fields
+- **Chores**: Task management with completion tracking, point values, timestamps, assignment fields, and optional voice message assignment (`voiceMessageId`)
   - `assignedToId`: User the chore is assigned to (optional)
   - `completedById`: User who actually completed the chore (tracked for point awards)
   - **Point Award System**: Points are awarded to the user who completes the chore (`completedById`), not necessarily the assigned user
@@ -35,6 +35,11 @@ Preferred communication style: Simple, everyday language.
 - **Rewards**: Configurable rewards with costs, availability, and metadata
 - **Transactions**: Comprehensive audit trail for all point earning and spending activities
 - **Push Subscriptions**: Browser push notification endpoints for real-time alerts
+- **Voice Messages**: Named audio recordings stored in object storage, assignable to individual chores
+  - `name`: Display name for the recording
+  - `audioUrl`: Object storage path to the audio file
+  - `createdById`: Admin who recorded the message
+  - Chores reference voice messages via `voiceMessageId` (null = no sound, undefined = default/no sound)
 - **Schema Validation**: Drizzle-Zod integration for type-safe database operations
 
 ## Authentication & Security

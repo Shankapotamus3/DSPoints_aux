@@ -31,14 +31,17 @@ export default function CompleteChoreDialog({ open, onClose, chore }: CompleteCh
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
-  const { data: voiceMessage } = useQuery<VoiceMessage | null>({
-    queryKey: ["/api/voice-message"],
+  const { data: voiceMessages = [] } = useQuery<VoiceMessage[]>({
+    queryKey: ["/api/voice-messages"],
   });
 
   const playCompletionAudio = () => {
-    if (voiceMessage?.audioUrl) {
+    if (chore.voiceMessageId === null) return;
+    if (!chore.voiceMessageId) return;
+    const msg = voiceMessages.find((m) => m.id === chore.voiceMessageId);
+    if (msg?.audioUrl) {
       try {
-        const audio = new Audio(voiceMessage.audioUrl);
+        const audio = new Audio(msg.audioUrl);
         audio.play().catch(() => {});
       } catch {}
     }

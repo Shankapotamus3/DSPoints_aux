@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertChore, Chore, User } from "@shared/schema";
+import type { InsertChore, Chore, User, VoiceMessage } from "@shared/schema";
 
 interface AddChoreModalProps {
   open: boolean;
@@ -29,10 +29,15 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
     isRecurring: editChore?.isRecurring || false,
     recurringType: (editChore?.recurringType as 'daily' | 'weekly' | 'monthly') || undefined,
     assignedToId: editChore?.assignedToId || undefined,
+    voiceMessageId: editChore?.voiceMessageId || undefined,
   });
   
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: voiceMessages = [] } = useQuery<VoiceMessage[]>({
+    queryKey: ["/api/voice-messages"],
   });
 
   const createMutation = useMutation({
@@ -97,6 +102,7 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
       isRecurring: false,
       recurringType: undefined,
       assignedToId: undefined,
+      voiceMessageId: undefined,
     });
     onClose();
   };
@@ -186,6 +192,36 @@ export default function AddChoreModal({ open, onClose, editChore }: AddChoreModa
             </Select>
           </div>
           
+          {/* Completion Voice Message */}
+          <div>
+            <Label htmlFor="voiceMessage">Completion Sound</Label>
+            <Select
+              value={formData.voiceMessageId === null ? "none" : (formData.voiceMessageId || "default")}
+              onValueChange={(value) => 
+                setFormData({ 
+                  ...formData, 
+                  voiceMessageId: value === "default" ? undefined : (value === "none" ? null : value)
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose completion sound" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default (no sound)</SelectItem>
+                <SelectItem value="none">No sound</SelectItem>
+                {voiceMessages.map(msg => (
+                  <SelectItem key={msg.id} value={msg.id}>
+                    {msg.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pick a voice message to play when this chore is completed
+            </p>
+          </div>
+
           {/* Recurring Chore Options */}
           <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
             <div className="flex items-center justify-between">

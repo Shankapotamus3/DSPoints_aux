@@ -36,7 +36,8 @@ export const chores = pgTable("chores", {
   nextDueDate: timestamp("next_due_date"),
   // Family member assignment
   assignedToId: varchar("assigned_to_id").references(() => users.id),
-  completedById: varchar("completed_by_id").references(() => users.id), // Track who actually completed the chore
+  completedById: varchar("completed_by_id").references(() => users.id),
+  voiceMessageId: varchar("voice_message_id"),
 });
 
 export const rewards = pgTable("rewards", {
@@ -180,6 +181,7 @@ export const assignedLines = pgTable("assigned_lines", {
 
 export const voiceMessages = pgTable("voice_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
   audioUrl: text("audio_url").notNull(),
   createdById: varchar("created_by_id").notNull().references(() => users.id),
   isActive: boolean("is_active").notNull().default(true),

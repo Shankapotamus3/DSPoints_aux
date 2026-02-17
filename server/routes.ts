@@ -2873,13 +2873,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Voice message routes
-  app.get("/api/voice-message", requireAuth, async (req, res) => {
+  app.get("/api/voice-messages", requireAuth, async (req, res) => {
     try {
-      const message = await storage.getActiveVoiceMessage();
-      res.json(message || null);
+      const messages = await storage.getAllVoiceMessages();
+      res.json(messages);
     } catch (error) {
-      console.error("Error getting voice message:", error);
-      res.status(500).json({ message: "Failed to get voice message" });
+      console.error("Error getting voice messages:", error);
+      res.status(500).json({ message: "Failed to get voice messages" });
     }
   });
 
@@ -2897,10 +2897,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice-message", requireAuth, requireAdmin, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { objectPath } = req.body;
+      const { objectPath, name } = req.body;
 
-      if (!objectPath) {
-        return res.status(400).json({ message: "objectPath is required" });
+      if (!objectPath || !name) {
+        return res.status(400).json({ message: "objectPath and name are required" });
       }
 
       const objectStorageService = new ObjectStorageService();
@@ -2910,6 +2910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const message = await storage.createVoiceMessage({
+        name,
         audioUrl: finalPath,
         createdById: userId,
       });
@@ -2918,6 +2919,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating voice message:", error);
       res.status(500).json({ message: "Failed to save voice message" });
+    }
+  });
+
+  app.put("/api/voice-message/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ message: "name is required" });
+      }
+
+      const message = await storage.updateVoiceMessage(id, { name });
+      if (!message) {
+        return res.status(404).json({ message: "Voice message not found" });
+      }
+
+      res.json(message);
+    } catch (error) {
+      console.error("Error updating voice message:", error);
+      res.status(500).json({ message: "Failed to update voice message" });
     }
   });
 
