@@ -200,6 +200,7 @@ export default function Chores() {
                   chore={chore} 
                   onComplete={handleChoreComplete}
                   onEdit={handleEditChore}
+                  onDelete={user?.isAdmin ? () => {} : undefined}
                 />
               ))
             )}
