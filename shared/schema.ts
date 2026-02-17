@@ -178,6 +178,14 @@ export const assignedLines = pgTable("assigned_lines", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const voiceMessages = pgTable("voice_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  audioUrl: text("audio_url").notNull(),
+  createdById: varchar("created_by_id").notNull().references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   points: true,
@@ -292,6 +300,12 @@ export const insertAssignedLineSchema = createInsertSchema(assignedLines).omit({
   createdAt: true,
 });
 
+export const insertVoiceMessageSchema = createInsertSchema(voiceMessages).omit({
+  id: true,
+  isActive: true,
+  createdAt: true,
+});
+
 export const choreApprovalSchema = z.object({
   comment: z.string().optional(),
 });
@@ -344,6 +358,8 @@ export type InsertPokerRound = z.infer<typeof insertPokerRoundSchema>;
 export type PokerRound = typeof pokerRounds.$inferSelect;
 export type InsertAssignedLine = z.infer<typeof insertAssignedLineSchema>;
 export type AssignedLine = typeof assignedLines.$inferSelect;
+export type InsertVoiceMessage = z.infer<typeof insertVoiceMessageSchema>;
+export type VoiceMessage = typeof voiceMessages.$inferSelect;
 export type ChoreApproval = z.infer<typeof choreApprovalSchema>;
 export type PointAdjustment = z.infer<typeof pointAdjustmentSchema>;
 export type ChoreCompletion = z.infer<typeof choreCompletionSchema>;

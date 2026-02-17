@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, Check } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Chore } from "@shared/schema";
+import type { Chore, VoiceMessage } from "@shared/schema";
 
 interface CompleteChoreDialogProps {
   open: boolean;
@@ -30,6 +30,19 @@ interface CompleteChoreDialogProps {
 export default function CompleteChoreDialog({ open, onClose, chore }: CompleteChoreDialogProps) {
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const { toast } = useToast();
+
+  const { data: voiceMessage } = useQuery<VoiceMessage | null>({
+    queryKey: ["/api/voice-message"],
+  });
+
+  const playCompletionAudio = () => {
+    if (voiceMessage?.audioUrl) {
+      try {
+        const audio = new Audio(voiceMessage.audioUrl);
+        audio.play().catch(() => {});
+      } catch {}
+    }
+  };
 
   const completeMutation = useMutation({
     mutationFn: async (date: Date) => {
@@ -44,6 +57,7 @@ export default function CompleteChoreDialog({ open, onClose, chore }: CompleteCh
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chores"] });
+      playCompletionAudio();
       toast({
         title: "Chore Completed!",
         description: `"${chore.name}" has been marked as completed and is pending approval.`,

@@ -8,6 +8,7 @@ import ChoreCard from "@/components/chore-card";
 import AddChoreModal from "@/components/add-chore-modal";
 import AdminApprovalModal from "@/components/admin-approval-modal";
 import CelebrationOverlay from "@/components/celebration-overlay";
+import VoiceRecorder from "@/components/voice-recorder";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Chore, User } from "@shared/schema";
@@ -142,6 +143,12 @@ export default function Chores() {
         {user?.isAdmin && pendingApprovalChores.length > 0 && (
           <div className="mb-6">
             <AdminApprovalModal pendingChores={pendingApprovalChores} />
+          </div>
+        )}
+
+        {user?.isAdmin && (
+          <div className="mb-6">
+            <VoiceRecorder />
           </div>
         )}
 

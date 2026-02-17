@@ -25,6 +25,8 @@ import {
   type InsertPokerRound,
   type AssignedLine,
   type InsertAssignedLine,
+  type VoiceMessage,
+  type InsertVoiceMessage,
   type ChoreStatus,
   users,
   chores,
@@ -38,7 +40,8 @@ import {
   yahtzeeGames,
   pokerGames,
   pokerRounds,
-  assignedLines
+  assignedLines,
+  voiceMessages
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, or, and, desc, lte } from "drizzle-orm";
@@ -139,6 +142,11 @@ export interface IStorage {
   updateAssignedLine(id: string, updates: Partial<AssignedLine>): Promise<AssignedLine | undefined>;
   incrementLineProgress(id: string): Promise<AssignedLine | undefined>;
   deleteAssignedLine(id: string): Promise<boolean>;
+
+  // Voice message methods
+  getActiveVoiceMessage(): Promise<VoiceMessage | undefined>;
+  createVoiceMessage(message: InsertVoiceMessage): Promise<VoiceMessage>;
+  deleteVoiceMessage(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -217,6 +225,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(pokerGames).where(
       or(eq(pokerGames.player1Id, id), eq(pokerGames.player2Id, id))
     );
+    // Delete voice messages
+    await db.delete(voiceMessages).where(eq(voiceMessages.createdById, id));
     // Clear chore assignments (don't delete chores, just unassign)
     await db.update(chores).set({ assignedToId: null }).where(eq(chores.assignedToId, id));
     await db.update(chores).set({ completedById: null }).where(eq(chores.completedById, id));
@@ -845,6 +855,26 @@ export class DatabaseStorage implements IStorage {
   async deleteAssignedLine(id: string): Promise<boolean> {
     const result = await db.delete(assignedLines).where(eq(assignedLines.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Voice message methods
+  async getActiveVoiceMessage(): Promise<VoiceMessage | undefined> {
+    const [message] = await db.select().from(voiceMessages)
+      .where(eq(voiceMessages.isActive, true))
+      .orderBy(desc(voiceMessages.createdAt))
+      .limit(1);
+    return message || undefined;
+  }
+
+  async createVoiceMessage(insertMessage: InsertVoiceMessage): Promise<VoiceMessage> {
+    await db.update(voiceMessages).set({ isActive: false }).where(eq(voiceMessages.isActive, true));
+    const [message] = await db.insert(voiceMessages).values(insertMessage).returning();
+    return message;
+  }
+
+  async deleteVoiceMessage(id: string): Promise<boolean> {
+    const result = await db.delete(voiceMessages).where(eq(voiceMessages.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

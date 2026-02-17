@@ -2872,6 +2872,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voice message routes
+  app.get("/api/voice-message", requireAuth, async (req, res) => {
+    try {
+      const message = await storage.getActiveVoiceMessage();
+      res.json(message || null);
+    } catch (error) {
+      console.error("Error getting voice message:", error);
+      res.status(500).json({ message: "Failed to get voice message" });
+    }
+  });
+
+  app.get("/api/voice-message/upload-url", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL, storageType: 'replit' });
+    } catch (error) {
+      console.error("Error getting voice message upload URL:", error);
+      res.status(500).json({ message: "Failed to get upload URL" });
+    }
+  });
+
+  app.post("/api/voice-message", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { objectPath } = req.body;
+
+      if (!objectPath) {
+        return res.status(400).json({ message: "objectPath is required" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const finalPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        objectPath,
+        { owner: userId, visibility: "public" }
+      );
+
+      const message = await storage.createVoiceMessage({
+        audioUrl: finalPath,
+        createdById: userId,
+      });
+
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error creating voice message:", error);
+      res.status(500).json({ message: "Failed to save voice message" });
+    }
+  });
+
+  app.delete("/api/voice-message/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteVoiceMessage(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Voice message not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting voice message:", error);
+      res.status(500).json({ message: "Failed to delete voice message" });
+    }
+  });
+
   const httpServer = createServer(app);
   console.log("🚀 HTTP server created successfully");
   return httpServer;
